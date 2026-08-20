@@ -46,6 +46,15 @@ export async function updateDonor(id: string, updates: Partial<IDonor>): Promise
   return donor;
 }
 
+export async function createDonor(data: { name: string; phone: string; donationAmount?: number; donationReference?: string; brickName?: string }): Promise<IDonor> {
+  const { v4: uuidv4 } = await import("uuid");
+  return Donor.create({
+    ...data,
+    phone: normalizePhone(data.phone),
+    donorId: "DONOR-" + uuidv4().slice(0, 8).toUpperCase(),
+  });
+}
+
 export async function getDonorCount(): Promise<number> {
   return Donor.countDocuments();
 }

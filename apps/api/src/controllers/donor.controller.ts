@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import * as donorService from "../services/donor.service.js";
 
+export async function create(req: Request, res: Response, next: NextFunction) {
+  try {
+    const donor = await donorService.createDonor(req.body);
+    res.status(201).json({ success: true, data: donor });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const page = parseInt(String(req.query.page)) || 1;

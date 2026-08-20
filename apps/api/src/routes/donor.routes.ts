@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { list, getById, update } from "../controllers/donor.controller.js";
+import { list, getById, update, create } from "../controllers/donor.controller.js";
 import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
 
 router.use(authenticate);
+router.post("/", create);
 router.get("/", list);
 router.get("/:id", getById);
 router.put("/:id", update);

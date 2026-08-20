@@ -65,6 +65,8 @@ export const api = {
     return request<PaginatedResponse<unknown>>("/donors" + qs);
   },
   donor: (id: string) => request<ApiResponse<unknown>>("/donors/" + id),
+  createDonor: (data: unknown) =>
+    request<ApiResponse<unknown>>("/donors", { method: "POST", body: JSON.stringify(data) }),
   updateDonor: (id: string, data: unknown) =>
     request<ApiResponse<unknown>>("/donors/" + id, { method: "PUT", body: JSON.stringify(data) }),
 
