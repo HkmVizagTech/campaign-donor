@@ -46,7 +46,8 @@ app.get("/api/health", (_req, res) => {
 app.get("/api/seed", async (_req, res) => {
   try {
     const mongoose = await import("mongoose");
-    const bcrypt = await import("bcryptjs");
+    const bcryptModule = await import("bcryptjs");
+    const bcrypt = bcryptModule.default || bcryptModule;
     const { AdminUser } = await import("./models/AdminUser.js");
     const { Donor } = await import("./models/Donor.js");
     const { Campaign } = await import("./models/Campaign.js");
