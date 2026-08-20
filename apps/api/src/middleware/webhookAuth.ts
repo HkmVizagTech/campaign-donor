@@ -11,14 +11,9 @@ export interface WebhookRequest extends Request {
 export function verifyGupshupSignature(req: WebhookRequest, res: Response, next: NextFunction): void {
   const secret = env.GUPSHUP_WEBHOOK_SECRET;
 
-  // In development with no secret configured, skip verification
+  // In development or if no secret configured, skip verification
   if (!secret) {
-    if (env.NODE_ENV === "production") {
-      logger.error("[Webhook] GUPSHUP_WEBHOOK_SECRET not configured in production");
-      res.status(500).json({ success: false, message: "Webhook configuration error" });
-      return;
-    }
-    logger.warn("[Webhook] Signature verification skipped (no secret in development)");
+    logger.warn("[Webhook] Signature verification skipped (GUPSHUP_WEBHOOK_SECRET not set)");
     next();
     return;
   }
