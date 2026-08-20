@@ -17,17 +17,20 @@ const app = express();
 app.use(helmet());
 app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 
-// Global JSON parser for admin routes
-app.use(express.json({ limit: "10mb" }));
-
-// Separate, stricter rate limit for the webhook endpoint
+// Webhook routes mounted BEFORE global JSON parser
+// so the webhook's own express.json with rawBody capture works
 const webhookRateLimit = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 300, // generous — Gupshup may burst many events
+  windowMs: 1 * 60 * 1000,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many webhook requests" },
 });
+
+app.use("/api/webhooks", webhookRateLimit, webhookRoutes);
+
+// Global JSON parser for admin routes
+app.use(express.json({ limit: "10mb" }));
 
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
 
@@ -40,11 +43,6 @@ app.use("/api/donors", donorRoutes);
 app.use("/api/import-batches", importBatchRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/reports", exportRoutes);
-
-// Webhook route mounted BEFORE the global error handler.
-// It has its own body parser (express.json with verify callback for raw body).
-// We still apply a dedicated rate limiter.
-app.use("/api/webhooks", webhookRateLimit, webhookRoutes);
 
 app.use(errorHandler);
 
