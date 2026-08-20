@@ -2,6 +2,7 @@
   "name": "@garbha-gudi/api",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "prebuild": "cd ../.. && pnpm --filter @garbha-gudi/shared build && pnpm --filter @garbha-gudi/validation build",
     "build": "tsc",
