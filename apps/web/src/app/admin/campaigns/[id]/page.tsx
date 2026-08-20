@@ -13,6 +13,7 @@ export default function CampaignDetailPage() {
   const queryClient = useQueryClient();
   const id = params.id as string;
   const [addingDonors, setAddingDonors] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["campaign", id],
@@ -29,6 +30,19 @@ export default function CampaignDetailPage() {
     },
   });
 
+  const sendMutation = useMutation({
+    mutationFn: () => api.sendCampaign(id),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+      setSending(false);
+      alert(`Messages sent: ${res.data.sent}, Failed: ${res.data.failed}`);
+    },
+    onError: (err: Error) => {
+      setSending(false);
+      alert("Send failed: " + err.message);
+    },
+  });
+
   const statusColors: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700",
     ready: "bg-blue-100 text-blue-700",
@@ -36,6 +50,7 @@ export default function CampaignDetailPage() {
     paused: "bg-yellow-100 text-yellow-700",
     completed: "bg-green-100 text-green-700",
     cancelled: "bg-red-100 text-red-700",
+    active: "bg-blue-100 text-blue-700",
   };
 
   if (isLoading) return <div className="text-gray-500">Loading...</div>;
@@ -73,6 +88,20 @@ export default function CampaignDetailPage() {
               className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             >
               Add Donors
+            </button>
+          )}
+          {(campaign.status === "draft" || campaign.status === "ready") && campaign.totalRecipients > 0 && (
+            <button
+              onClick={() => {
+                if (confirm(`Send WhatsApp messages to ${campaign.totalRecipients} recipients?`)) {
+                  setSending(true);
+                  sendMutation.mutate();
+                }
+              }}
+              disabled={sending || sendMutation.isPending}
+              className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+            >
+              {sending ? "Sending..." : "Send Messages"}
             </button>
           )}
         </div>

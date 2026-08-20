@@ -7,6 +7,8 @@ export interface ICampaign extends Document {
   description?: string;
   type: CampaignType;
   status: CampaignStatus;
+  templateId?: string;
+  templateName?: string;
   totalRecipients: number;
   totalSent: number;
   totalDelivered: number;
@@ -26,6 +28,8 @@ const campaignSchema = new Schema<ICampaign>(
     description: { type: String, trim: true },
     type: { type: String, enum: Object.values(CampaignType), default: CampaignType.Attendance },
     status: { type: String, enum: Object.values(CampaignStatus), default: CampaignStatus.Draft },
+    templateId: { type: String },
+    templateName: { type: String },
     totalRecipients: { type: Number, default: 0 },
     totalSent: { type: Number, default: 0 },
     totalDelivered: { type: Number, default: 0 },

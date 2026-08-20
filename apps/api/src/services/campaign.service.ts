@@ -6,6 +6,8 @@ import { Donor } from "../models/Donor.js";
 import { NotFoundError, BadRequestError } from "../utils/errors.js";
 import { v4 as uuidv4 } from "uuid";
 import { ResponseStatus, CampaignStatus } from "@garbha-gudi/shared";
+import { sendTemplateMessage } from "./gupshup/index.js";
+import { logger } from "../utils/logger.js";
 
 export async function createCampaign(data: { name: string; description?: string; type?: string }, adminId: string) {
   return Campaign.create({
@@ -183,6 +185,83 @@ export async function recalculateStats(campaignId: string) {
     totalNo: s.totalNo,
     totalPending: s.totalPending,
   });
+}
+
+export async function sendCampaign(campaignId: string) {
+  const campaign = await Campaign.findById(campaignId);
+  if (!campaign) throw new NotFoundError("Campaign not found");
+
+  if (!campaign.templateId) {
+    throw new BadRequestError("Campaign has no template ID configured");
+  }
+
+  const recipients = await CampaignRecipient.find({
+    campaignId: campaign._id,
+    messageStatus: { $in: ["not_sent", "queued"] },
+  }).populate("donorId");
+
+  if (recipients.length === 0) {
+    throw new BadRequestError("No unsent recipients found");
+  }
+
+  campaign.status = CampaignStatus.Sending;
+  await campaign.save();
+
+  let sent = 0;
+  let failed = 0;
+
+  const BATCH_DELAY_MS = 1000;
+
+  for (const recipient of recipients) {
+    const donor = recipient.donorId as any;
+    const phone = recipient.phone;
+
+    try {
+      const result = await sendTemplateMessage({
+        phone,
+        templateId: campaign.templateId!,
+        variables: {
+          name: donor?.name || "Donor",
+        },
+      });
+
+      if (result) {
+        recipient.messageStatus = "sent" as any;
+        recipient.sentAt = new Date();
+        recipient.externalMessageId = result.messageId;
+        await recipient.save();
+        sent++;
+      } else {
+        recipient.messageStatus = "failed" as any;
+        recipient.failedAt = new Date();
+        recipient.failureReason = "Gupshup API returned null";
+        await recipient.save();
+        failed++;
+      }
+    } catch (err) {
+      recipient.messageStatus = "failed" as any;
+      recipient.failedAt = new Date();
+      recipient.failureReason = (err as Error).message;
+      await recipient.save();
+      failed++;
+    }
+
+    await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+  }
+
+  await recalculateStats(campaignId);
+
+  if (failed === 0 && sent > 0) {
+    campaign.status = CampaignStatus.Completed;
+    await campaign.save();
+  } else if (sent === 0 && failed > 0) {
+    campaign.status = CampaignStatus.Draft;
+    await campaign.save();
+  }
+
+  logger.info("[Campaign] Send completed", { campaignId, sent, failed });
+
+  return { sent, failed, total: recipients.length };
 }
 
 export async function getDashboardStats() {

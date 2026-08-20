@@ -11,9 +11,11 @@ export default function NewCampaignPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("attendance");
+  const [templateId, setTemplateId] = useState("");
+  const [templateName, setTemplateName] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () => api.createCampaign({ name, description, type }),
+    mutationFn: () => api.createCampaign({ name, description, type, templateId, templateName }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       router.push("/admin/campaigns/" + res.data._id);
@@ -56,6 +58,26 @@ export default function NewCampaignPage() {
               <option value="fundraising">Fundraising</option>
               <option value="general">General</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Gupshup Template ID</label>
+            <input
+              type="text"
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              placeholder="e.g. abc12345-xxxx-xxxx"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Template Name (for reference)</label>
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="e.g. Attendance Confirmation"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
 

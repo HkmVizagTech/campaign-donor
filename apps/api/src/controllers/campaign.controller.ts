@@ -147,6 +147,25 @@ export async function updateBrickStatus(req: Request, res: Response, next: NextF
   }
 }
 
+export async function send(req: Request, res: Response, next: NextFunction) {
+  try {
+    const admin = (req as AuthRequest).admin!;
+    const result = await campaignService.sendCampaign(getId(req));
+
+    await AuditLog.create({
+      adminId: admin._id,
+      action: "campaign_send_started",
+      entity: "campaign",
+      entityId: req.params.id as any,
+      metadata: result,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
     const id = getId(req);

@@ -11,6 +11,7 @@ export const env = {
   GUPSHUP_ENABLED: process.env.GUPSHUP_ENABLED === "true",
   GUPSHUP_API_KEY: process.env.GUPSHUP_API_KEY || "",
   GUPSHUP_APP_ID: process.env.GUPSHUP_APP_ID || "",
+  GUPSHUP_APP_NAME: process.env.GUPSHUP_APP_NAME || "",
   GUPSHUP_SOURCE_NUMBER: process.env.GUPSHUP_SOURCE_NUMBER || "",
   GUPSHUP_WEBHOOK_SECRET: process.env.GUPSHUP_WEBHOOK_SECRET || "",
   MAX_FILE_SIZE_MB: parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10),

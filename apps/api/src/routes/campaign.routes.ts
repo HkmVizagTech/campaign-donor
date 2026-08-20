@@ -3,7 +3,7 @@ import {
   create, list, getById, update,
   addRecipients, getRecipients,
   updateResponse, updateBrickStatus,
-  getStats, dashboard,
+  getStats, dashboard, send,
 } from "../controllers/campaign.controller.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -27,6 +27,9 @@ router.get("/:id/recipients", getRecipients);
 // Response + Brick
 router.put("/:id/recipients/:recipientId/response", updateResponse);
 router.put("/:id/recipients/:recipientId/brick", updateBrickStatus);
+
+// Send
+router.post("/:id/send", send);
 
 // Stats
 router.get("/:id/stats", getStats);

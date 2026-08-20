@@ -107,6 +107,10 @@ export const api = {
       body: JSON.stringify({ brickStatus }),
     }),
   campaignStats: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id + "/stats"),
+  sendCampaign: (id: string) =>
+    request<ApiResponse<{ sent: number; failed: number; total: number }>>("/campaigns/" + id + "/send", {
+      method: "POST",
+    }),
 
   exportUrl: (campaignId: string, response?: string, format = "xlsx") => {
     let url = API_URL + "/reports/" + campaignId + "/export?format=" + format;
