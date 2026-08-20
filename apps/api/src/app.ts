@@ -43,7 +43,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Temporary seed endpoint — remove after seeding
-app.post("/api/seed", async (_req, res) => {
+app.get("/api/seed", async (_req, res) => {
   try {
     const mongoose = await import("mongoose");
     const bcrypt = await import("bcryptjs");
