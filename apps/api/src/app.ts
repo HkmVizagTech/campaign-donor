@@ -28,7 +28,7 @@ const webhookRateLimit = rateLimit({
 });
 
 app.get("/api/webhooks", (_req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).end();
 });
 
 app.use("/api/webhooks", webhookRateLimit, webhookRoutes);

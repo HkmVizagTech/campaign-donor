@@ -18,7 +18,7 @@ gupshupRouter.use(
 );
 
 gupshupRouter.get("/", (_req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).end();
 });
 
 gupshupRouter.post(

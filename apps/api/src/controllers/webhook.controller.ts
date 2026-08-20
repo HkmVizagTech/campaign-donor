@@ -34,7 +34,7 @@ export async function handleGupshupWebhook(req: WebhookRequest, res: Response): 
         });
       });
 
-      res.status(200).json({ status: "ok" });
+      res.status(200).end();
       return;
     }
 
@@ -54,19 +54,19 @@ export async function handleGupshupWebhook(req: WebhookRequest, res: Response): 
         });
       });
 
-      res.status(200).json({ status: "ok" });
+      res.status(200).end();
       return;
     }
 
     // --- Unknown payload type — still return 200 so Gupshup doesn't retry ---
     logger.warn(`[Webhook:${requestId}] Unrecognised payload type`, { type: eventType });
-    res.status(200).json({ status: "ok" });
+    res.status(200).end();
   } catch (err: any) {
     // Never let an error cause a non-2xx — Gupshup would retry indefinitely
     logger.error(`[Webhook:${requestId}] Unexpected error`, {
       error: err.message,
       stack: err.stack,
     });
-    res.status(200).json({ status: "ok" });
+    res.status(200).end();
   }
 }
