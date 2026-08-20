@@ -1,8 +1,6 @@
 import { env } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
 
-const GUPSHUP_API_BASE = "https://api.gupshup.io";
-
 export interface GupshupMessage {
   phone: string;
   templateId: string;
@@ -33,10 +31,11 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
   });
 
   try {
-    const response = await fetch(`${GUPSHUP_API_BASE}/wa/api/v1/template/msg`, {
+    const url = `https://partner.gupshup.io/partner/app/${env.GUPSHUP_APP_ID}/template/msg`;
+    const response = await fetch(url, {
       method: "POST",
       headers: {
-        apikey: env.GUPSHUP_API_KEY,
+        Authorization: env.GUPSHUP_API_KEY,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),
