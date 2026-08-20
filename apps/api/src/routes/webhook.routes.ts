@@ -5,9 +5,6 @@ import express from "express";
 
 const router = Router();
 
-// Dedicated sub-router for Gupshup that captures raw body before JSON parsing.
-// express.json's verify callback gives us the raw Buffer for HMAC checking,
-// then the parsed object lands in req.body as normal.
 const gupshupRouter = express.Router();
 
 gupshupRouter.use(
@@ -19,6 +16,10 @@ gupshupRouter.use(
     },
   })
 );
+
+gupshupRouter.get("/", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 gupshupRouter.post(
   "/",

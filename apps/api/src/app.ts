@@ -27,6 +27,10 @@ const webhookRateLimit = rateLimit({
   message: { success: false, message: "Too many webhook requests" },
 });
 
+app.get("/api/webhooks", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.use("/api/webhooks", webhookRateLimit, webhookRoutes);
 
 // Global JSON parser for admin routes
