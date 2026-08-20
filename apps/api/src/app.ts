@@ -15,7 +15,22 @@ import webhookRoutes from "./routes/webhook.routes.js";
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = [
+      env.FRONTEND_URL,
+      "https://campaign-donor-web.vercel.app",
+      "https://campaign-donor-jfjazghvc-hkmvizags-projects.vercel.app",
+      "http://localhost:3000",
+    ];
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
 
 // Webhook routes mounted BEFORE global JSON parser
 // so the webhook's own express.json with rawBody capture works
