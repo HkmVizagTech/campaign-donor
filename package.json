@@ -1,0 +1,13 @@
+{
+  "name": "garbha-gudi-campaign",
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter @garbha-gudi/api dev",
+    "dev:web": "pnpm --filter @garbha-gudi/web dev",
+    "dev": "pnpm run dev:api & pnpm run dev:web",
+    "build": "pnpm --filter @garbha-gudi/shared build && pnpm --filter @garbha-gudi/validation build && pnpm --filter @garbha-gudi/api build && pnpm --filter @garbha-gudi/web build",
+    "seed": "pnpm --filter @garbha-gudi/api seed",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
