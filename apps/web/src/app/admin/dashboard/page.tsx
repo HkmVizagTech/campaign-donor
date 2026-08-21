@@ -8,6 +8,8 @@ export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.dashboard(),
+    // Keep response counts fresh as WhatsApp replies come in without a manual reload
+    refetchInterval: 15000,
   });
 
   const stats = data?.data as any;

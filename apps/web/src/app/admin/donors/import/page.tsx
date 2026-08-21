@@ -69,6 +69,29 @@ export default function ImportDonorsPage() {
 
   const requiredFields = ["name", "phone"];
 
+  const downloadSampleTemplate = () => {
+    const sampleHeaders = [
+      "name", "phone", "donorId", "email", "address",
+      "donationAmount", "donationDate", "donationReference", "brickName", "notes",
+    ];
+    const sampleRow = [
+      "Rajesh Kumar", "9876543210", "DONOR-A1B2C3D4", "rajesh@example.com", "12 MG Road, Vizag",
+      "5000", "2026-01-15", "REF001", "B12", "First time donor",
+    ];
+    const escape = (v: string) => (v.includes(",") || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v);
+    const csv = [sampleHeaders.join(","), sampleRow.map(escape).join(",")].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "donor-import-sample.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Import Donors</h1>
@@ -103,6 +126,12 @@ export default function ImportDonorsPage() {
           {previewMutation.isError && (
             <div className="mt-4 text-red-600 text-sm">{(previewMutation.error as Error).message}</div>
           )}
+          <button
+            onClick={downloadSampleTemplate}
+            className="mt-6 text-sm text-blue-600 hover:underline"
+          >
+            Download sample template (CSV)
+          </button>
         </div>
       )}
 
