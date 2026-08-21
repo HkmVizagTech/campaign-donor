@@ -14,7 +14,7 @@ export const env = {
   GUPSHUP_APP_NAME: process.env.GUPSHUP_APP_NAME || "",
   GUPSHUP_SOURCE_NUMBER: process.env.GUPSHUP_SOURCE_NUMBER || "",
   GUPSHUP_WEBHOOK_SECRET: process.env.GUPSHUP_WEBHOOK_SECRET || "",
-  GUPSHUP_TEMPLATE_ID: process.env.GUPSHUP_TEMPLATE_ID || "garbagudi_nirman_message",
+  GUPSHUP_TEMPLATE_ID: process.env.GUPSHUP_TEMPLATE_ID || "1935120a-4688-4ebb-94bc-c96739a4fe99",
   GUPSHUP_TEMPLATE_NAME: process.env.GUPSHUP_TEMPLATE_NAME || "garbagudi_nirman_message",
   MAX_FILE_SIZE_MB: parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10),
 };

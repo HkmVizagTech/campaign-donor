@@ -31,7 +31,7 @@ garbha-gudi-campaign/
 | `GUPSHUP_APP_ID` | *(leave empty for now)* |
 | `GUPSHUP_SOURCE_NUMBER` | *(leave empty for now)* |
 | `GUPSHUP_WEBHOOK_SECRET` | *(leave empty for now)* |
-| `GUPSHUP_TEMPLATE_ID` | `garbagudi_nirman_message` |
+| `GUPSHUP_TEMPLATE_ID` | `1935120a-4688-4ebb-94bc-c96739a4fe99` (the template's actual ID, not its name) |
 | `GUPSHUP_TEMPLATE_NAME` | `garbagudi_nirman_message` |
 
 4. **Build settings** (Railway should auto-detect, but if not):
