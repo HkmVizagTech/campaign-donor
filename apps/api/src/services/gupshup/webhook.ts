@@ -23,7 +23,7 @@ export async function handleButtonResponse(event: ParsedButtonResponse): Promise
     messageId,
   });
 
-  const mappedResponse = BUTTON_RESPONSE_MAP[buttonPayload];
+  const mappedResponse = BUTTON_RESPONSE_MAP[buttonPayload?.toUpperCase()];
   if (!mappedResponse) {
     logger.warn("[Gupshup] Unknown button payload", { payload: buttonPayload });
     return;
