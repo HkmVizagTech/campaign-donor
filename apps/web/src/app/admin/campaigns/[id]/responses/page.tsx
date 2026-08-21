@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 type ResponseFilter = "" | "yes" | "no" | "pending";
+type MessageStatusFilter = "" | "not_sent" | "sent" | "delivered" | "failed";
 
 export default function ResponsesPage() {
   const params = useParams();
@@ -15,14 +16,16 @@ export default function ResponsesPage() {
 
   const [page, setPage] = useState(1);
   const [responseFilter, setResponseFilter] = useState<ResponseFilter>("");
+  const [messageStatusFilter, setMessageStatusFilter] = useState<MessageStatusFilter>("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["recipients", campaignId, page, responseFilter, debouncedSearch],
+    queryKey: ["recipients", campaignId, page, responseFilter, messageStatusFilter, debouncedSearch],
     queryFn: () => {
       const params: Record<string, string> = { page: String(page), limit: "20" };
       if (responseFilter) params.response = responseFilter;
+      if (messageStatusFilter) params.messageStatus = messageStatusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
       return api.campaignRecipients(campaignId, params);
     },
@@ -70,6 +73,28 @@ export default function ResponsesPage() {
     );
   };
 
+  const messageStatusBadge = (s: string) => {
+    const labels: Record<string, string> = {
+      not_sent: "Not Sent",
+      queued: "Queued",
+      sent: "Sent",
+      delivered: "Delivered",
+      failed: "Failed",
+    };
+    const colors: Record<string, string> = {
+      not_sent: "bg-gray-100 text-gray-600",
+      queued: "bg-blue-100 text-blue-700",
+      sent: "bg-cyan-100 text-cyan-700",
+      delivered: "bg-green-100 text-green-700",
+      failed: "bg-red-100 text-red-700",
+    };
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium ${colors[s] || ""}`}>
+        {labels[s] || s}
+      </span>
+    );
+  };
+
   const brickBadge = (s: string) => {
     const labels: Record<string, string> = {
       not_required: "N/A",
@@ -102,7 +127,8 @@ export default function ResponsesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-2">
+        <span className="text-xs text-gray-500 w-20 shrink-0">Response:</span>
         <div className="flex gap-1">
           {(["", "yes", "no", "pending"] as ResponseFilter[]).map((f) => (
             <button
@@ -113,6 +139,23 @@ export default function ResponsesPage() {
               }`}
             >
               {f === "" ? "All" : f.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <span className="text-xs text-gray-500 w-20 shrink-0">Message:</span>
+        <div className="flex gap-1">
+          {(["", "not_sent", "sent", "delivered", "failed"] as MessageStatusFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => { setMessageStatusFilter(f); setPage(1); }}
+              className={`px-3 py-1 rounded text-sm ${
+                messageStatusFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {f === "" ? "All" : f === "not_sent" ? "Not Sent" : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
@@ -140,6 +183,7 @@ export default function ResponsesPage() {
                   <th className="text-left px-4 py-3 font-medium">Phone</th>
                   <th className="text-left px-4 py-3 font-medium">Donor ID</th>
                   <th className="text-left px-4 py-3 font-medium">Response</th>
+                  <th className="text-left px-4 py-3 font-medium">Message Status</th>
                   <th className="text-left px-4 py-3 font-medium">Brick</th>
                   <th className="text-left px-4 py-3 font-medium">Response Date</th>
                   <th className="text-left px-4 py-3 font-medium">Actions</th>
@@ -152,6 +196,14 @@ export default function ResponsesPage() {
                     <td className="px-4 py-3">{r.phone}</td>
                     <td className="px-4 py-3 text-gray-500">{r.donor?.donorId || "-"}</td>
                     <td className="px-4 py-3">{responseBadge(r.response)}</td>
+                    <td className="px-4 py-3">
+                      {messageStatusBadge(r.messageStatus)}
+                      {r.messageStatus === "failed" && r.failureReason && (
+                        <div className="text-xs text-red-600 mt-1 max-w-[200px]" title={r.failureReason}>
+                          {r.failureReason}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{brickBadge(r.brickStatus)}</td>
                     <td className="px-4 py-3 text-gray-500">{r.responseAt ? new Date(r.responseAt).toLocaleDateString() : "-"}</td>
                     <td className="px-4 py-3">
@@ -189,7 +241,7 @@ export default function ResponsesPage() {
                 ))}
                 {recipients.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">No recipients found</td>
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">No recipients found</td>
                   </tr>
                 )}
               </tbody>

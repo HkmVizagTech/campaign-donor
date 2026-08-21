@@ -252,7 +252,8 @@ export async function sendCampaign(
 
   const totalRecipients = await CampaignRecipient.countDocuments({
     campaignId: campaign._id,
-    messageStatus: { $in: ["not_sent", "queued"] },
+    // Include previously-failed sends so clicking "Send Messages" again retries them
+    messageStatus: { $in: ["not_sent", "queued", "failed"] },
   });
 
   if (totalRecipients === 0) {
@@ -299,7 +300,8 @@ interface SendTemplateConfig {
 async function processCampaignSend(campaignId: string, template: SendTemplateConfig) {
   const recipients = await CampaignRecipient.find({
     campaignId,
-    messageStatus: { $in: ["not_sent", "queued"] },
+    // Include previously-failed sends so clicking "Send Messages" again retries them
+    messageStatus: { $in: ["not_sent", "queued", "failed"] },
   }).populate("donorId");
 
   let sent = 0;
@@ -354,13 +356,10 @@ async function processCampaignSend(campaignId: string, template: SendTemplateCon
 
   const campaign = await Campaign.findById(campaignId);
   if (campaign) {
-    if (failed === 0 && sent > 0) {
-      campaign.status = CampaignStatus.Completed;
-    } else if (sent === 0 && failed > 0) {
-      campaign.status = CampaignStatus.Draft;
-    } else {
-      campaign.status = CampaignStatus.Completed;
-    }
+    // Any failures go back to Draft (not Completed) so "Send Messages" stays
+    // available to retry them — the eligibility query above already includes
+    // "failed", so clicking it again resends exactly the ones that didn't go out.
+    campaign.status = failed > 0 ? CampaignStatus.Draft : CampaignStatus.Completed;
     await campaign.save();
   }
 

@@ -24,6 +24,8 @@ export default function CampaignDetailPage() {
   });
 
   const campaign = (data?.data || {}) as any;
+  // Recipients not yet successfully sent/delivered — what the next send/retry click will target
+  const eligibleCount = Math.max((campaign.totalRecipients || 0) - (campaign.totalSent || 0), 0);
 
   const sendMutation = useMutation({
     mutationFn: () => api.sendCampaign(id, sendVars),
@@ -94,9 +96,11 @@ export default function CampaignDetailPage() {
           {(campaign.status === "draft" || campaign.status === "ready") && campaign.totalRecipients > 0 && (
             <button
               onClick={openSendModal}
-              className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+              className={`px-4 py-2 text-white rounded text-sm ${
+                campaign.totalFailed > 0 ? "bg-orange-600 hover:bg-orange-700" : "bg-green-600 hover:bg-green-700"
+              }`}
             >
-              Send Messages
+              {campaign.totalFailed > 0 ? `Retry Failed (${campaign.totalFailed})` : "Send Messages"}
             </button>
           )}
         </div>
@@ -120,9 +124,11 @@ export default function CampaignDetailPage() {
       {sendModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-1">Send Messages</h3>
+            <h3 className="text-lg font-semibold mb-1">{campaign.totalFailed > 0 ? "Retry Failed Messages" : "Send Messages"}</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Sending to {campaign.totalRecipients} recipients. Fill in the message details below.
+              {campaign.totalFailed > 0
+                ? `Retrying ${eligibleCount} recipients who haven't received a message yet (including ${campaign.totalFailed} failed). Fill in the message details below.`
+                : `Sending to ${eligibleCount} recipients. Fill in the message details below.`}
             </p>
             <div className="space-y-3">
               <div>
@@ -178,7 +184,7 @@ export default function CampaignDetailPage() {
                 disabled={sendMutation.isPending}
                 className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
               >
-                {sendMutation.isPending ? "Starting..." : `Send to ${campaign.totalRecipients}`}
+                {sendMutation.isPending ? "Starting..." : `Send to ${eligibleCount}`}
               </button>
             </div>
           </div>
