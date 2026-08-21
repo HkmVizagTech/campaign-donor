@@ -24,20 +24,27 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
   params.append("destination", stripPlus(message.phone));
   params.append("src.name", env.GUPSHUP_APP_NAME);
 
-  // For templates with a media header (image/video/document), Gupshup expects
-  // the header media URL as the first entry in `params`, followed by the
-  // body's positional variables in template order.
+  // `params` holds ONLY the body's positional variables ({{1}}..{{n}}).
+  // A media header is passed separately in the `message` field below —
+  // putting it in `params` inflates the count and Gupshup rejects the send.
   const bodyParams = message.variables ? Object.values(message.variables) : [];
   const templatePayload: Record<string, unknown> = {
     id: message.templateId,
-    params: message.headerImageUrl ? [message.headerImageUrl, ...bodyParams] : bodyParams,
+    params: bodyParams,
   };
   params.append("template", JSON.stringify(templatePayload));
+
+  if (message.headerImageUrl) {
+    params.append(
+      "message",
+      JSON.stringify({ type: "image", image: { link: message.headerImageUrl } })
+    );
+  }
 
   logger.info("[Gupshup] Sending template message", {
     phone: message.phone,
     templateId: message.templateId,
-    paramCount: (templatePayload.params as unknown[]).length,
+    paramCount: bodyParams.length,
     hasHeaderImage: !!message.headerImageUrl,
     sourceConfigured: !!env.GUPSHUP_SOURCE_NUMBER,
     appIdConfigured: !!env.GUPSHUP_APP_ID,
