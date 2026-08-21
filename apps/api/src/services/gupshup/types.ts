@@ -1,32 +1,51 @@
+// Gupshup's v2 webhook envelope wraps everything under a `payload` key with
+// its own `type`, rather than the flatter shape this file used to assume.
+// See https://docs.gupshup.io/docs/whatsapp-message-type-inbound and
+// https://docs.gupshup.io/docs/message-events
+
 export interface GupshupInboundPayload {
   type: "message";
-  message: {
+  app?: string;
+  timestamp: number; // milliseconds
+  version?: number;
+  payload: {
     id: string;
-    source: string;
-    type: string;
-    text?: string;
-    button?: {
-      text: string;
-      payload: string;
+    source: string; // phone, no leading "+"
+    type: string; // "button_reply" | "list_reply" | "text" | ...
+    // Shape varies by `type`; for button/list replies Gupshup has been seen
+    // to use either {id, title} (Meta Cloud API style) or
+    // {text, postbackText, refmsgid} — both are checked defensively.
+    payload?: {
+      id?: string;
+      title?: string;
+      text?: string;
+      postbackText?: string;
+      refmsgid?: string;
     };
-    image?: { url: string };
-    video?: { url: string };
-    file?: { url: string };
+    sender?: {
+      phone: string;
+      name?: string;
+      country_code?: string;
+      dial_code?: string;
+    };
   };
-  timestamp: number;
-  appId: string;
-  version?: string;
 }
 
 export interface GupshupStatusPayload {
   type: "message-event";
-  messageId: string;
-  status: "sent" | "delivered" | "failed" | "unknown";
-  destination: string;
-  timestamp: number;
-  errorCode?: string;
-  errorMessage?: string;
-  appId?: string;
+  app?: string;
+  timestamp: number; // milliseconds
+  version?: number;
+  payload: {
+    id: string;
+    gsId?: string;
+    type: "enqueued" | "sent" | "delivered" | "read" | "failed" | "deleted" | string;
+    destination: string; // phone, no leading "+"
+    payload?: {
+      code?: number | string;
+      reason?: string;
+    };
+  };
 }
 
 export type GupshupPayload = GupshupInboundPayload | GupshupStatusPayload;
@@ -42,7 +61,7 @@ export interface ParsedButtonResponse {
 export interface ParsedStatusEvent {
   phone: string;
   messageId: string;
-  status: "sent" | "delivered" | "failed";
+  status: "queued" | "sent" | "delivered" | "failed";
   errorCode?: string;
   errorMessage?: string;
   timestamp: Date;

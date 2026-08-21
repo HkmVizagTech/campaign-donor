@@ -59,7 +59,14 @@ export async function handleGupshupWebhook(req: WebhookRequest, res: Response): 
     }
 
     // --- Unknown payload type — still return 200 so Gupshup doesn't retry ---
-    logger.warn(`[Webhook:${requestId}] Unrecognised payload type`, { type: eventType });
+    // Logs shape (keys only, no phone/content) so an unexpected format is
+    // diagnosable from logs alone instead of needing another round-trip.
+    logger.warn(`[Webhook:${requestId}] Unrecognised payload type`, {
+      type: eventType,
+      innerType: payload?.payload?.type,
+      topLevelKeys: Object.keys(payload || {}),
+      innerKeys: Object.keys(payload?.payload || {}),
+    });
     res.status(200).end();
   } catch (err: any) {
     // Never let an error cause a non-2xx — Gupshup would retry indefinitely

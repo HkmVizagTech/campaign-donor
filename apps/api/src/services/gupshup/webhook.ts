@@ -15,18 +15,34 @@ const BUTTON_RESPONSE_MAP: Record<string, ResponseStatus> = {
   NO: ResponseStatus.No,
 };
 
+// Quick-reply buttons can carry a short code as their payload (e.g. ATTEND_YES)
+// or, if the template was built without a custom payload, the visible button
+// text itself (e.g. "Yes, I'm coming"). Check both, and fall back to matching
+// a leading "yes"/"no" so full-sentence button text still resolves correctly.
+function mapButtonToResponse(buttonPayload?: string, buttonText?: string): ResponseStatus | null {
+  for (const raw of [buttonPayload, buttonText]) {
+    const normalized = raw?.trim().toUpperCase();
+    if (!normalized) continue;
+    if (BUTTON_RESPONSE_MAP[normalized]) return BUTTON_RESPONSE_MAP[normalized];
+    if (normalized.startsWith("YES")) return ResponseStatus.Yes;
+    if (normalized.startsWith("NO")) return ResponseStatus.No;
+  }
+  return null;
+}
+
 export async function handleButtonResponse(event: ParsedButtonResponse): Promise<void> {
-  const { phone, buttonPayload, messageId, timestamp } = event;
+  const { phone, buttonPayload, buttonText, messageId, timestamp } = event;
 
   logger.info("[Gupshup] Button response received", {
     phone: maskPhone(phone),
     payload: buttonPayload,
+    buttonText,
     messageId,
   });
 
-  const mappedResponse = BUTTON_RESPONSE_MAP[buttonPayload?.toUpperCase()];
+  const mappedResponse = mapButtonToResponse(buttonPayload, buttonText);
   if (!mappedResponse) {
-    logger.warn("[Gupshup] Unknown button payload", { payload: buttonPayload });
+    logger.warn("[Gupshup] Unknown button payload", { payload: buttonPayload, buttonText });
     return;
   }
 
@@ -106,6 +122,12 @@ export async function handleMessageStatus(event: ParsedStatusEvent): Promise<voi
 
   // Update message status
   switch (status) {
+    case "queued":
+      if (recipient.messageStatus === MessageStatus.NotSent) {
+        recipient.messageStatus = MessageStatus.Queued;
+      }
+      break;
+
     case "sent":
       if (recipient.messageStatus === MessageStatus.NotSent || recipient.messageStatus === MessageStatus.Queued) {
         recipient.messageStatus = MessageStatus.Sent;
