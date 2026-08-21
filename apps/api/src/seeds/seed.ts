@@ -67,6 +67,8 @@ async function seed() {
     description: "Attendance confirmation for Garbha Gudi construction occasion",
     type: "attendance",
     status: "draft",
+    templateId: env.GUPSHUP_TEMPLATE_ID,
+    templateName: env.GUPSHUP_TEMPLATE_NAME,
     createdBy: admin._id,
   });
   console.log("Campaign created: " + campaign.name);

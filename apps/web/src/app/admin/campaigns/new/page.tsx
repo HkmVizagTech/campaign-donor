@@ -11,8 +11,8 @@ export default function NewCampaignPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("attendance");
-  const [templateId, setTemplateId] = useState("");
-  const [templateName, setTemplateName] = useState("");
+  const [templateId, setTemplateId] = useState("garbagudi_nirman_message");
+  const [templateName, setTemplateName] = useState("garbagudi_nirman_message");
 
   const mutation = useMutation({
     mutationFn: () => api.createCampaign({ name, description, type, templateId, templateName }),
@@ -65,7 +65,7 @@ export default function NewCampaignPage() {
               type="text"
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
-              placeholder="e.g. abc12345-xxxx-xxxx"
+              placeholder="e.g. garbagudi_nirman_message"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -75,7 +75,7 @@ export default function NewCampaignPage() {
               type="text"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="e.g. Attendance Confirmation"
+              placeholder="e.g. garbagudi_nirman_message"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

@@ -14,7 +14,7 @@ export async function exportCampaignData({ campaignId, response, format }: Expor
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new Error("Campaign not found");
 
-  const filter: Record<string, unknown> = { campaignId };
+  const filter: Record<string, unknown> = { campaignId: new mongoose.Types.ObjectId(campaignId) };
   if (response) filter.response = response;
 
   const recipients = await CampaignRecipient.aggregate([

@@ -18,6 +18,8 @@ export default function CampaignDetailPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["campaign", id],
     queryFn: () => api.campaign(id),
+    // Poll while a send is in progress so stats/status update without a manual refresh
+    refetchInterval: (query) => ((query.state.data as any)?.data?.status === "sending" ? 3000 : false),
   });
 
   const campaign = (data?.data || {}) as any;
@@ -35,7 +37,7 @@ export default function CampaignDetailPage() {
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["campaign", id] });
       setSending(false);
-      alert(`Messages sent: ${res.data.sent}, Failed: ${res.data.failed}`);
+      alert(`Sending started for ${res.data.totalRecipients} recipients. Stats will update as messages go out.`);
     },
     onError: (err: Error) => {
       setSending(false);

@@ -157,7 +157,7 @@ export async function send(req: Request, res: Response, next: NextFunction) {
       action: "campaign_send_started",
       entity: "campaign",
       entityId: req.params.id as any,
-      metadata: result,
+      metadata: { totalRecipients: result.totalRecipients },
     });
 
     res.json({ success: true, data: result });

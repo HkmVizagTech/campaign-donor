@@ -1,21 +1,35 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { Download } from "lucide-react";
 
 export default function CampaignExportPage() {
   const params = useParams();
   const campaignId = params.id as string;
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  const download = (response?: string, format = "xlsx") => {
-    const url = api.exportUrl(campaignId, response, format);
-    window.open(url, "_blank");
+  const download = async (response?: string, format = "xlsx") => {
+    setError(null);
+    setPending(true);
+    try {
+      await api.downloadExport(campaignId, response, format);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Export Campaign Data</h1>
+
+      {error && (
+        <div className="mb-4 text-red-600 text-sm bg-red-50 border border-red-200 rounded p-3">{error}</div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4 max-w-xl">
         <ExportCard
@@ -24,6 +38,7 @@ export default function CampaignExportPage() {
           onExportXlsx={() => download("yes", "xlsx")}
           onExportCsv={() => download("yes", "csv")}
           color="green"
+          disabled={pending}
         />
         <ExportCard
           title="NO Donors"
@@ -31,6 +46,7 @@ export default function CampaignExportPage() {
           onExportXlsx={() => download("no", "xlsx")}
           onExportCsv={() => download("no", "csv")}
           color="red"
+          disabled={pending}
         />
         <ExportCard
           title="Pending Donors"
@@ -38,6 +54,7 @@ export default function CampaignExportPage() {
           onExportXlsx={() => download("pending", "xlsx")}
           onExportCsv={() => download("pending", "csv")}
           color="yellow"
+          disabled={pending}
         />
         <ExportCard
           title="All Donors"
@@ -45,6 +62,7 @@ export default function CampaignExportPage() {
           onExportXlsx={() => download(undefined, "xlsx")}
           onExportCsv={() => download(undefined, "csv")}
           color="blue"
+          disabled={pending}
         />
       </div>
     </div>
@@ -57,12 +75,14 @@ function ExportCard({
   onExportXlsx,
   onExportCsv,
   color,
+  disabled,
 }: {
   title: string;
   description: string;
   onExportXlsx: () => void;
   onExportCsv: () => void;
   color: string;
+  disabled?: boolean;
 }) {
   const borderColors: Record<string, string> = {
     green: "border-t-green-500",
@@ -78,13 +98,15 @@ function ExportCard({
       <div className="flex gap-2">
         <button
           onClick={onExportXlsx}
-          className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+          disabled={disabled}
+          className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
         >
           <Download size={14} /> Excel
         </button>
         <button
           onClick={onExportCsv}
-          className="flex items-center gap-1 px-3 py-1 border rounded text-sm hover:bg-gray-50"
+          disabled={disabled}
+          className="flex items-center gap-1 px-3 py-1 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
         >
           <Download size={14} /> CSV
         </button>

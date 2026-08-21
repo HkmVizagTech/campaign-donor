@@ -71,7 +71,7 @@ export const api = {
     request<ApiResponse<unknown>>("/donors/" + id, { method: "PUT", body: JSON.stringify(data) }),
 
   importDonors: (formData: FormData) =>
-    request<ApiResponse<{ batch: unknown; summary: unknown }>>("/donors/import", {
+    request<ApiResponse<{ batch: unknown; summary: unknown }>>("/import-batches/import", {
       method: "POST",
       body: formData,
     }),
@@ -110,13 +110,42 @@ export const api = {
     }),
   campaignStats: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id + "/stats"),
   sendCampaign: (id: string) =>
-    request<ApiResponse<{ sent: number; failed: number; total: number }>>("/campaigns/" + id + "/send", {
+    request<ApiResponse<{ started: boolean; totalRecipients: number }>>("/campaigns/" + id + "/send", {
       method: "POST",
     }),
 
-  exportUrl: (campaignId: string, response?: string, format = "xlsx") => {
+  downloadExport: async (campaignId: string, response?: string, format = "xlsx") => {
     let url = API_URL + "/reports/" + campaignId + "/export?format=" + format;
     if (response) url += "&response=" + response;
-    return url;
+
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = "Bearer " + token;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      let message = "Export failed";
+      try {
+        const json = await res.json();
+        message = json.message || message;
+      } catch {
+        // response wasn't JSON (e.g. the file itself) — keep default message
+      }
+      throw new Error(message);
+    }
+
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || `export.${format}`;
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
   },
 };

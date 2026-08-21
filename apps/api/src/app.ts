@@ -30,6 +30,7 @@ app.use(cors({
     }
   },
   credentials: true,
+  exposedHeaders: ["Content-Disposition"],
 }));
 
 // Webhook routes mounted BEFORE global JSON parser

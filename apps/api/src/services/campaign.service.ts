@@ -8,13 +8,19 @@ import { v4 as uuidv4 } from "uuid";
 import { ResponseStatus, CampaignStatus } from "@garbha-gudi/shared";
 import { sendTemplateMessage } from "./gupshup/index.js";
 import { logger } from "../utils/logger.js";
+import { env } from "../config/env.js";
 
-export async function createCampaign(data: { name: string; description?: string; type?: string }, adminId: string) {
+export async function createCampaign(
+  data: { name: string; description?: string; type?: string; templateId?: string; templateName?: string },
+  adminId: string
+) {
   return Campaign.create({
     campaignId: uuidv4(),
     name: data.name,
     description: data.description,
     type: data.type || "attendance",
+    templateId: data.templateId || env.GUPSHUP_TEMPLATE_ID,
+    templateName: data.templateName || env.GUPSHUP_TEMPLATE_NAME,
     createdBy: adminId,
   });
 }
@@ -77,7 +83,7 @@ export async function getCampaignRecipients(
   campaignId: string,
   params: { page: number; limit: number; response?: string; messageStatus?: string; search?: string }
 ) {
-  const filter: Record<string, unknown> = { campaignId };
+  const filter: Record<string, unknown> = { campaignId: new mongoose.Types.ObjectId(campaignId) };
   if (params.response) filter.response = params.response;
   if (params.messageStatus) filter.messageStatus = params.messageStatus;
 
@@ -191,21 +197,43 @@ export async function sendCampaign(campaignId: string) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new NotFoundError("Campaign not found");
 
-  if (!campaign.templateId) {
+  if (campaign.status === CampaignStatus.Sending) {
+    throw new BadRequestError("Campaign is already sending");
+  }
+
+  // Fall back to the configured default template if the campaign has none of its own
+  const templateId = campaign.templateId || env.GUPSHUP_TEMPLATE_ID;
+  if (!templateId) {
     throw new BadRequestError("Campaign has no template ID configured");
   }
 
-  const recipients = await CampaignRecipient.find({
+  const totalRecipients = await CampaignRecipient.countDocuments({
     campaignId: campaign._id,
     messageStatus: { $in: ["not_sent", "queued"] },
-  }).populate("donorId");
+  });
 
-  if (recipients.length === 0) {
+  if (totalRecipients === 0) {
     throw new BadRequestError("No unsent recipients found");
   }
 
   campaign.status = CampaignStatus.Sending;
   await campaign.save();
+
+  // Sending can take minutes for large recipient lists (rate-limited to 1/sec).
+  // Kick it off in the background so the HTTP request returns immediately —
+  // the campaign detail page polls stats/status while status is "sending".
+  processCampaignSend(campaignId, templateId).catch((err) => {
+    logger.error("[Campaign] Background send crashed", { campaignId, error: err.message });
+  });
+
+  return { started: true, totalRecipients };
+}
+
+async function processCampaignSend(campaignId: string, templateId: string) {
+  const recipients = await CampaignRecipient.find({
+    campaignId,
+    messageStatus: { $in: ["not_sent", "queued"] },
+  }).populate("donorId");
 
   let sent = 0;
   let failed = 0;
@@ -219,7 +247,7 @@ export async function sendCampaign(campaignId: string) {
     try {
       const result = await sendTemplateMessage({
         phone,
-        templateId: campaign.templateId!,
+        templateId,
         variables: {
           name: donor?.name || "Donor",
           donorId: donor?.donorId || "",
@@ -252,17 +280,19 @@ export async function sendCampaign(campaignId: string) {
 
   await recalculateStats(campaignId);
 
-  if (failed === 0 && sent > 0) {
-    campaign.status = CampaignStatus.Completed;
-    await campaign.save();
-  } else if (sent === 0 && failed > 0) {
-    campaign.status = CampaignStatus.Draft;
+  const campaign = await Campaign.findById(campaignId);
+  if (campaign) {
+    if (failed === 0 && sent > 0) {
+      campaign.status = CampaignStatus.Completed;
+    } else if (sent === 0 && failed > 0) {
+      campaign.status = CampaignStatus.Draft;
+    } else {
+      campaign.status = CampaignStatus.Completed;
+    }
     await campaign.save();
   }
 
   logger.info("[Campaign] Send completed", { campaignId, sent, failed });
-
-  return { sent, failed, total: recipients.length };
 }
 
 export async function getDashboardStats() {
