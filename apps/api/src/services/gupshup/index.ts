@@ -47,19 +47,17 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
     paramCount: bodyParams.length,
     hasHeaderImage: !!message.headerImageUrl,
     sourceConfigured: !!env.GUPSHUP_SOURCE_NUMBER,
-    appIdConfigured: !!env.GUPSHUP_APP_ID,
     appNameConfigured: !!env.GUPSHUP_APP_NAME,
   });
 
   try {
-    const url = `https://partner.gupshup.io/partner/app/${env.GUPSHUP_APP_ID}/template/msg`;
+    // Standard (non-partner) API — GUPSHUP_API_KEY is a plain account API
+    // key, not a partner app token (sk_...), so this is the right endpoint
+    // for it: authenticated via the `apikey` header, no appId in the path.
+    const url = "https://api.gupshup.io/wa/api/v1/template/msg";
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        // The partner endpoint authenticates via a `token` header holding a
-        // partner app token (sk_...), NOT `Authorization`. `apikey` is sent
-        // too so a plain app API key also works; unknown headers are ignored.
-        token: env.GUPSHUP_API_KEY,
         apikey: env.GUPSHUP_API_KEY,
         "Content-Type": "application/x-www-form-urlencoded",
       },
