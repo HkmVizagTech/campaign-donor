@@ -56,10 +56,23 @@ app.get("/api/webhooks", (_req, res) => {
 
 app.use("/api/webhooks", webhookRateLimit, webhookRoutes);
 
+// SSE holds one long-lived connection per session — mounted before the
+// global rate limiter (like webhooks above) so it isn't counted as repeated
+// requests and a dropped/reconnecting connection can't exhaust the budget.
+app.use("/api/events", eventsRoutes);
+
 // Global JSON parser for admin routes
 app.use(express.json({ limit: "10mb" }));
 
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Must be JSON — the frontend always calls res.json() on responses, and a
+  // plain-text rate-limit body crashes it with a "not valid JSON" error.
+  message: { success: false, message: "Too many requests, please slow down and try again shortly." },
+}));
 
 app.get("/api/health", (_req, res) => {
   res.json({ success: true, message: "API is running" });
@@ -70,7 +83,6 @@ app.use("/api/donors", donorRoutes);
 app.use("/api/import-batches", importBatchRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/reports", exportRoutes);
-app.use("/api/events", eventsRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.use(errorHandler);

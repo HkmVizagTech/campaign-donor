@@ -41,7 +41,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   const res = await fetch(API_URL + path, { ...options, headers });
-  const json = await res.json();
+
+  // A proxy, rate limiter, or host-level error page can return plain
+  // text/HTML instead of JSON — parse defensively so that surfaces as a
+  // normal error instead of an uncaught "not valid JSON" crash.
+  const text = await res.text();
+  let json: any;
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(res.ok ? "Unexpected response from server" : `Request failed (HTTP ${res.status})`);
+  }
 
   if (!res.ok || !json.success) {
     throw new Error(json.message || "Request failed");
