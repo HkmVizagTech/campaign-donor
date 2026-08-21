@@ -126,6 +126,7 @@ export async function importDonors(
   });
 
   let insertedCount = 0;
+  let updatedCount = 0;
   let duplicateCount = 0;
 
   for (const { data } of valid) {
@@ -146,8 +147,26 @@ export async function importDonors(
     if (data.notes) donorData.notes = String(data.notes).trim();
 
     try {
-      await Donor.create(donorData);
-      insertedCount++;
+      if (donorData.donorId) {
+        // Re-importing a row with a donorId that already exists updates that
+        // donor's details (e.g. a corrected phone number) instead of the old
+        // create()-and-silently-skip-on-conflict behavior, which left stale
+        // data in place with no indication anything was ignored.
+        const existing = await Donor.findOneAndUpdate(
+          { donorId: donorData.donorId },
+          { $set: donorData },
+          { new: false }
+        );
+        if (existing) {
+          updatedCount++;
+        } else {
+          await Donor.create(donorData);
+          insertedCount++;
+        }
+      } else {
+        await Donor.create(donorData);
+        insertedCount++;
+      }
     } catch (err: any) {
       if (err.code === 11000) {
         duplicateCount++;
@@ -174,7 +193,7 @@ export async function importDonors(
     }
   }
 
-  batch.successfulRows = insertedCount;
+  batch.successfulRows = insertedCount + updatedCount;
   batch.duplicateRows = duplicateCount;
   batch.status = ImportBatchStatus.Completed;
   batch.validationErrors = errors.slice(0, 100);
@@ -187,6 +206,7 @@ export async function importDonors(
     summary: {
       totalRows: parsed.totalRows,
       inserted: insertedCount,
+      updated: updatedCount,
       duplicates: duplicateCount,
       failed: errors.length,
       duplicatePhones: duplicatePhones.size,

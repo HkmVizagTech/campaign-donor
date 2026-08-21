@@ -249,7 +249,7 @@ export default function ImportDonorsPage() {
           <CheckCircle size={48} className="mx-auto text-green-500 mb-4" />
           <h2 className="text-lg font-semibold text-center mb-4">Import Complete</h2>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div className="text-center p-3 bg-gray-50 rounded">
               <div className="text-2xl font-bold">{result.summary.totalRows}</div>
               <div className="text-sm text-gray-500">Total Rows</div>
@@ -257,6 +257,10 @@ export default function ImportDonorsPage() {
             <div className="text-center p-3 bg-green-50 rounded">
               <div className="text-2xl font-bold text-green-700">{result.summary.inserted}</div>
               <div className="text-sm text-gray-500">Imported</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded">
+              <div className="text-2xl font-bold text-blue-700">{result.summary.updated || 0}</div>
+              <div className="text-sm text-gray-500">Updated</div>
             </div>
             <div className="text-center p-3 bg-yellow-50 rounded">
               <div className="text-2xl font-bold text-yellow-700">{result.summary.duplicates}</div>
