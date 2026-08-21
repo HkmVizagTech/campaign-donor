@@ -226,7 +226,10 @@ export async function recalculateStats(campaignId: string) {
   });
 }
 
-export async function sendCampaign(campaignId: string) {
+export async function sendCampaign(
+  campaignId: string,
+  messageVariables?: { headerImageUrl?: string; eventDate?: string; eventTime?: string; programItem?: string }
+) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new NotFoundError("Campaign not found");
 
@@ -247,6 +250,15 @@ export async function sendCampaign(campaignId: string) {
 
   if (totalRecipients === 0) {
     throw new BadRequestError("No unsent recipients found");
+  }
+
+  // Message variables are filled in at send time, not campaign creation —
+  // persist them on the campaign so re-sends/resumes reuse the same values.
+  if (messageVariables) {
+    if (messageVariables.headerImageUrl !== undefined) campaign.headerImageUrl = messageVariables.headerImageUrl;
+    if (messageVariables.eventDate !== undefined) campaign.eventDate = messageVariables.eventDate;
+    if (messageVariables.eventTime !== undefined) campaign.eventTime = messageVariables.eventTime;
+    if (messageVariables.programItem !== undefined) campaign.programItem = messageVariables.programItem;
   }
 
   campaign.status = CampaignStatus.Sending;

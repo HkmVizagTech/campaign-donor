@@ -13,7 +13,8 @@ export default function CampaignDetailPage() {
   const queryClient = useQueryClient();
   const id = params.id as string;
   const [addingDonors, setAddingDonors] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendVars, setSendVars] = useState({ headerImageUrl: "", eventDate: "", eventTime: "", programItem: "" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["campaign", id],
@@ -34,17 +35,23 @@ export default function CampaignDetailPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: () => api.sendCampaign(id),
+    mutationFn: () => api.sendCampaign(id, sendVars),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["campaign", id] });
-      setSending(false);
+      setSendModalOpen(false);
       alert(`Sending started for ${res.data.totalRecipients} recipients. Stats will update as messages go out.`);
     },
-    onError: (err: Error) => {
-      setSending(false);
-      alert("Send failed: " + err.message);
-    },
   });
+
+  const openSendModal = () => {
+    setSendVars({
+      headerImageUrl: campaign.headerImageUrl || "",
+      eventDate: campaign.eventDate || "",
+      eventTime: campaign.eventTime || "",
+      programItem: campaign.programItem || "",
+    });
+    setSendModalOpen(true);
+  };
 
   const statusColors: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700",
@@ -95,16 +102,10 @@ export default function CampaignDetailPage() {
           )}
           {(campaign.status === "draft" || campaign.status === "ready") && campaign.totalRecipients > 0 && (
             <button
-              onClick={() => {
-                if (confirm(`Send WhatsApp messages to ${campaign.totalRecipients} recipients?`)) {
-                  setSending(true);
-                  sendMutation.mutate();
-                }
-              }}
-              disabled={sending || sendMutation.isPending}
-              className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+              onClick={openSendModal}
+              className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700"
             >
-              {sending ? "Sending..." : "Send Messages"}
+              Send Messages
             </button>
           )}
         </div>
@@ -150,6 +151,75 @@ export default function CampaignDetailPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
               >
                 {addAllMutation.isPending ? "Adding..." : "Add All Donors"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Messages Modal */}
+      {sendModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-1">Send Messages</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Sending to {campaign.totalRecipients} recipients. Fill in the message details below.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Header Image URL</label>
+                <input
+                  type="text"
+                  value={sendVars.headerImageUrl}
+                  onChange={(e) => setSendVars({ ...sendVars, headerImageUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
+                <input
+                  type="text"
+                  value={sendVars.eventDate}
+                  onChange={(e) => setSendVars({ ...sendVars, eventDate: e.target.value })}
+                  placeholder="e.g. 24th August 2026"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
+                <input
+                  type="text"
+                  value={sendVars.eventTime}
+                  onChange={(e) => setSendVars({ ...sendVars, eventTime: e.target.value })}
+                  placeholder="e.g. 5:00 PM"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Program Item</label>
+                <input
+                  type="text"
+                  value={sendVars.programItem}
+                  onChange={(e) => setSendVars({ ...sendVars, programItem: e.target.value })}
+                  placeholder="e.g. Bhoomi Puja & Shilanyas"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            {sendMutation.isError && (
+              <div className="text-red-600 text-sm mt-4">{(sendMutation.error as Error).message}</div>
+            )}
+
+            <div className="flex gap-2 justify-end mt-6">
+              <button onClick={() => setSendModalOpen(false)} className="px-4 py-2 border rounded text-sm">Cancel</button>
+              <button
+                onClick={() => sendMutation.mutate()}
+                disabled={sendMutation.isPending}
+                className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+              >
+                {sendMutation.isPending ? "Starting..." : `Send to ${campaign.totalRecipients}`}
               </button>
             </div>
           </div>

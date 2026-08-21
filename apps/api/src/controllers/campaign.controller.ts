@@ -150,7 +150,10 @@ export async function updateBrickStatus(req: Request, res: Response, next: NextF
 export async function send(req: Request, res: Response, next: NextFunction) {
   try {
     const admin = (req as AuthRequest).admin!;
-    const result = await campaignService.sendCampaign(getId(req));
+    const { headerImageUrl, eventDate, eventTime, programItem } = req.body || {};
+    const result = await campaignService.sendCampaign(getId(req), {
+      headerImageUrl, eventDate, eventTime, programItem,
+    });
 
     await AuditLog.create({
       adminId: admin._id,

@@ -109,9 +109,10 @@ export const api = {
       body: JSON.stringify({ brickStatus }),
     }),
   campaignStats: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id + "/stats"),
-  sendCampaign: (id: string) =>
+  sendCampaign: (id: string, variables?: unknown) =>
     request<ApiResponse<{ started: boolean; totalRecipients: number }>>("/campaigns/" + id + "/send", {
       method: "POST",
+      body: JSON.stringify(variables || {}),
     }),
 
   downloadExport: async (campaignId: string, response?: string, format = "xlsx") => {
