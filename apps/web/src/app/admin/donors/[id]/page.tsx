@@ -34,6 +34,7 @@ export default function DonorDetailPage() {
       phone: donor.phone || "",
       email: donor.email || "",
       address: donor.address || "",
+      sevaCategory: donor.sevaCategory || "",
       brickName: donor.brickName || "",
       donationAmount: donor.donationAmount?.toString() || "",
       donationReference: donor.donationReference || "",
@@ -80,6 +81,7 @@ export default function DonorDetailPage() {
             <Field label="Donor ID" value={donor.donorId || "-"} />
             <Field label="Name" value={editing ? form.name : donor.name} editing={editing} onChange={(v) => setForm({ ...form, name: v })} />
             <Field label="Phone" value={editing ? form.phone : donor.phone} editing={editing} onChange={(v) => setForm({ ...form, phone: v })} />
+            <Field label="Seva Category" value={editing ? form.sevaCategory : donor.sevaCategory || "-"} editing={editing} onChange={(v) => setForm({ ...form, sevaCategory: v })} />
             <Field label="Email" value={editing ? form.email : donor.email || "-"} editing={editing} onChange={(v) => setForm({ ...form, email: v })} />
             <Field label="Address" value={editing ? form.address : donor.address || "-"} editing={editing} onChange={(v) => setForm({ ...form, address: v })} />
           </div>
@@ -88,7 +90,7 @@ export default function DonorDetailPage() {
         <div className="bg-white rounded-lg border p-6">
           <h2 className="font-semibold mb-4">Donation Information</h2>
           <div className="space-y-3 text-sm">
-            <Field label="Brick Name" value={editing ? form.brickName : donor.brickName || "-"} editing={editing} onChange={(v) => setForm({ ...form, brickName: v })} />
+            <Field label="Brick No" value={editing ? form.brickName : donor.brickName || "-"} editing={editing} onChange={(v) => setForm({ ...form, brickName: v })} />
             <Field label="Donation Amount" value={editing ? form.donationAmount : donor.donationAmount ? "Rs. " + donor.donationAmount.toLocaleString() : "-"} editing={editing} onChange={(v) => setForm({ ...form, donationAmount: v })} />
             <Field label="Donation Reference" value={editing ? form.donationReference : donor.donationReference || "-"} editing={editing} onChange={(v) => setForm({ ...form, donationReference: v })} />
             <Field label="Notes" value={editing ? form.notes : donor.notes || "-"} editing={editing} onChange={(v) => setForm({ ...form, notes: v })} />

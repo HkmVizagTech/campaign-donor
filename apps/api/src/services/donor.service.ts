@@ -47,7 +47,7 @@ export async function updateDonor(id: string, updates: Partial<IDonor>): Promise
   return donor;
 }
 
-export async function createDonor(data: { name: string; phone: string; donationAmount?: number; donationReference?: string; brickName?: string }): Promise<IDonor> {
+export async function createDonor(data: { name: string; phone: string; donationAmount?: number; donationReference?: string; brickName?: string; sevaCategory?: string }): Promise<IDonor> {
   const { v4: uuidv4 } = await import("uuid");
   const donor = await Donor.create({
     ...data,

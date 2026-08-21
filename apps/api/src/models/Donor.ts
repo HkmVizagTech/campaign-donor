@@ -10,6 +10,7 @@ export interface IDonor extends Document {
   donationDate?: Date;
   donationReference?: string;
   brickName?: string;
+  sevaCategory?: string;
   source?: string;
   importBatchId?: mongoose.Types.ObjectId;
   notes?: string;
@@ -29,6 +30,7 @@ const donorSchema = new Schema<IDonor>(
     donationDate: { type: Date },
     donationReference: { type: String, trim: true },
     brickName: { type: String, trim: true },
+    sevaCategory: { type: String, trim: true },
     source: { type: String, trim: true },
     importBatchId: { type: Schema.Types.ObjectId, ref: "ImportBatch" },
     notes: { type: String, trim: true },

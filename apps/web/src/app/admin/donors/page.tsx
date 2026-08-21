@@ -62,7 +62,8 @@ export default function DonorsPage() {
                   <th className="text-left px-4 py-3 font-medium">Donor ID</th>
                   <th className="text-left px-4 py-3 font-medium">Name</th>
                   <th className="text-left px-4 py-3 font-medium">Phone</th>
-                  <th className="text-left px-4 py-3 font-medium">Brick Name</th>
+                  <th className="text-left px-4 py-3 font-medium">Seva Category</th>
+                  <th className="text-left px-4 py-3 font-medium">Brick No</th>
                   <th className="text-left px-4 py-3 font-medium">Amount</th>
                   <th className="text-left px-4 py-3 font-medium">Source</th>
                 </tr>
@@ -77,6 +78,7 @@ export default function DonorsPage() {
                     <td className="px-4 py-3 text-gray-500">{d.donorId || "-"}</td>
                     <td className="px-4 py-3 font-medium">{d.name}</td>
                     <td className="px-4 py-3">{d.phone}</td>
+                    <td className="px-4 py-3">{d.sevaCategory || "-"}</td>
                     <td className="px-4 py-3">{d.brickName || "-"}</td>
                     <td className="px-4 py-3">{d.donationAmount ? "Rs. " + d.donationAmount.toLocaleString() : "-"}</td>
                     <td className="px-4 py-3 text-gray-500">{d.source || "-"}</td>
@@ -84,7 +86,7 @@ export default function DonorsPage() {
                 ))}
                 {donors.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No donors found</td>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">No donors found</td>
                   </tr>
                 )}
               </tbody>

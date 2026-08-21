@@ -141,6 +141,7 @@ export async function importDonors(
     if (data.donationDate) donorData.donationDate = new Date(String(data.donationDate));
     if (data.donationReference) donorData.donationReference = String(data.donationReference).trim();
     if (data.brickName) donorData.brickName = String(data.brickName).trim();
+    if (data.sevaCategory) donorData.sevaCategory = String(data.sevaCategory).trim();
     if (data.donorId) donorData.donorId = String(data.donorId).trim();
     if (data.notes) donorData.notes = String(data.notes).trim();
 

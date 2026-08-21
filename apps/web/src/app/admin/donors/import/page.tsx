@@ -17,16 +17,11 @@ export default function ImportDonorsPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [mapping, setMapping] = useState<Record<string, string>>({
+    donorId: "",
     name: "",
     phone: "",
-    donorId: "",
-    email: "",
-    donationAmount: "",
-    donationDate: "",
-    donationReference: "",
+    sevaCategory: "",
     brickName: "",
-    notes: "",
-    address: "",
   });
   const [result, setResult] = useState<any>(null);
 
@@ -68,16 +63,17 @@ export default function ImportDonorsPage() {
   };
 
   const requiredFields = ["name", "phone"];
+  const fieldLabels: Record<string, string> = {
+    donorId: "Donor ID",
+    name: "Name",
+    phone: "Phone",
+    sevaCategory: "Seva Category",
+    brickName: "Brick No",
+  };
 
   const downloadSampleTemplate = () => {
-    const sampleHeaders = [
-      "name", "phone", "donorId", "email", "address",
-      "donationAmount", "donationDate", "donationReference", "brickName", "notes",
-    ];
-    const sampleRow = [
-      "Rajesh Kumar", "9876543210", "DONOR-A1B2C3D4", "rajesh@example.com", "12 MG Road, Vizag",
-      "5000", "2026-01-15", "REF001", "B12", "First time donor",
-    ];
+    const sampleHeaders = ["donorId", "name", "phone", "sevaCategory", "brickName"];
+    const sampleRow = ["DONOR-A1B2C3D4", "Rajesh Kumar", "9876543210", "Annadanam Seva", "B12"];
     const escape = (v: string) => (v.includes(",") || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v);
     const csv = [sampleHeaders.join(","), sampleRow.map(escape).join(",")].join("\n");
 
@@ -148,7 +144,7 @@ export default function ImportDonorsPage() {
               {Object.keys(mapping).map((field) => (
                 <div key={field}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {field} {requiredFields.includes(field) && <span className="text-red-500">*</span>}
+                    {fieldLabels[field] || field} {requiredFields.includes(field) && <span className="text-red-500">*</span>}
                   </label>
                   <select
                     value={mapping[field]}

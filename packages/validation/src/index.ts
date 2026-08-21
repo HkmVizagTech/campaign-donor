@@ -14,6 +14,7 @@ export const donorCreateSchema = z.object({
   donationDate: z.string().optional(),
   donationReference: z.string().optional(),
   brickName: z.string().optional(),
+  sevaCategory: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -58,5 +59,6 @@ export const columnMappingSchema = z.object({
   donationDate: z.string().optional(),
   donationReference: z.string().optional(),
   brickName: z.string().optional(),
+  sevaCategory: z.string().optional(),
   notes: z.string().optional(),
 });
