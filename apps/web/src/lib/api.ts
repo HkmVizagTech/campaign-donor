@@ -149,4 +149,10 @@ export const api = {
     a.remove();
     URL.revokeObjectURL(blobUrl);
   },
+
+  resetAllData: (confirm: string) =>
+    request<ApiResponse<Record<string, number>>>("/admin/reset-data", {
+      method: "POST",
+      body: JSON.stringify({ confirm }),
+    }),
 };

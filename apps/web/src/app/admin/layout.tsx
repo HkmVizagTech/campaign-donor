@@ -10,6 +10,7 @@ import {
   Users,
   Upload,
   Megaphone,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/admin/donors", label: "All Donors", icon: Users },
   { href: "/admin/donors/import", label: "Import Donors", icon: Upload },
   { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

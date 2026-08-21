@@ -12,6 +12,7 @@ import campaignRoutes from "./routes/campaign.routes.js";
 import exportRoutes from "./routes/export.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
 import eventsRoutes from "./routes/events.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use("/api/import-batches", importBatchRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/reports", exportRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use(errorHandler);
 
