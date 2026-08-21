@@ -12,7 +12,17 @@ import { env } from "../config/env.js";
 import { emitAppEvent } from "../utils/events.js";
 
 export async function createCampaign(
-  data: { name: string; description?: string; type?: string; templateId?: string; templateName?: string },
+  data: {
+    name: string;
+    description?: string;
+    type?: string;
+    templateId?: string;
+    templateName?: string;
+    headerImageUrl?: string;
+    eventDate?: string;
+    eventTime?: string;
+    programItem?: string;
+  },
   adminId: string
 ) {
   return Campaign.create({
@@ -22,6 +32,10 @@ export async function createCampaign(
     type: data.type || "attendance",
     templateId: data.templateId || env.GUPSHUP_TEMPLATE_ID,
     templateName: data.templateName || env.GUPSHUP_TEMPLATE_NAME,
+    headerImageUrl: data.headerImageUrl,
+    eventDate: data.eventDate,
+    eventTime: data.eventTime,
+    programItem: data.programItem,
     createdBy: adminId,
   });
 }
@@ -242,14 +256,28 @@ export async function sendCampaign(campaignId: string) {
   // Sending can take minutes for large recipient lists (rate-limited to 1/sec).
   // Kick it off in the background so the HTTP request returns immediately —
   // the campaign detail page polls stats/status while status is "sending".
-  processCampaignSend(campaignId, templateId).catch((err) => {
+  processCampaignSend(campaignId, {
+    templateId,
+    headerImageUrl: campaign.headerImageUrl,
+    eventDate: campaign.eventDate,
+    eventTime: campaign.eventTime,
+    programItem: campaign.programItem,
+  }).catch((err) => {
     logger.error("[Campaign] Background send crashed", { campaignId, error: err.message });
   });
 
   return { started: true, totalRecipients };
 }
 
-async function processCampaignSend(campaignId: string, templateId: string) {
+interface SendTemplateConfig {
+  templateId: string;
+  headerImageUrl?: string;
+  eventDate?: string;
+  eventTime?: string;
+  programItem?: string;
+}
+
+async function processCampaignSend(campaignId: string, template: SendTemplateConfig) {
   const recipients = await CampaignRecipient.find({
     campaignId,
     messageStatus: { $in: ["not_sent", "queued"] },
@@ -267,10 +295,14 @@ async function processCampaignSend(campaignId: string, templateId: string) {
     try {
       const result = await sendTemplateMessage({
         phone,
-        templateId,
+        templateId: template.templateId,
+        headerImageUrl: template.headerImageUrl,
+        // Positional — must match the approved template's {{1}}..{{4}} order
         variables: {
           name: donor?.name || "Donor",
-          donorId: donor?.donorId || "",
+          eventDate: template.eventDate || "",
+          eventTime: template.eventTime || "",
+          programItem: template.programItem || "",
         },
       });
 

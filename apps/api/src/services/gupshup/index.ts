@@ -5,6 +5,8 @@ export interface GupshupMessage {
   phone: string;
   templateId: string;
   variables?: Record<string, string>;
+  // Public URL for the template's media header (image/video/document), if any
+  headerImageUrl?: string;
 }
 
 export async function sendTemplateMessage(message: GupshupMessage): Promise<{ messageId: string } | null> {
@@ -19,9 +21,13 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
   params.append("destination", message.phone);
   params.append("src.name", env.GUPSHUP_APP_NAME);
 
+  // For templates with a media header (image/video/document), Gupshup expects
+  // the header media URL as the first entry in `params`, followed by the
+  // body's positional variables in template order.
+  const bodyParams = message.variables ? Object.values(message.variables) : [];
   const templatePayload: Record<string, unknown> = {
     id: message.templateId,
-    params: message.variables ? Object.values(message.variables) : [],
+    params: message.headerImageUrl ? [message.headerImageUrl, ...bodyParams] : bodyParams,
   };
   params.append("template", JSON.stringify(templatePayload));
 

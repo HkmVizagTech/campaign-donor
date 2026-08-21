@@ -23,6 +23,12 @@ export const campaignCreateSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
   description: z.string().optional(),
   type: z.enum(["attendance", "fundraising", "general"]).default("attendance"),
+  templateId: z.string().optional(),
+  templateName: z.string().optional(),
+  headerImageUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  eventDate: z.string().optional(),
+  eventTime: z.string().optional(),
+  programItem: z.string().optional(),
 });
 
 export const campaignUpdateSchema = campaignCreateSchema.partial().extend({
