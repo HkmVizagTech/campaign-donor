@@ -39,7 +39,7 @@ export default function ImportDonorsPage() {
   const importMutation = useMutation({
     mutationFn: (formData: FormData) => api.importDonors(formData),
     onSuccess: (res) => {
-      setResult(res);
+      setResult(res.data);
       setStep("result");
       queryClient.invalidateQueries({ queryKey: ["donors"] });
     },
