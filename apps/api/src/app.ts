@@ -16,6 +16,11 @@ import adminRoutes from "./routes/admin.routes.js";
 
 const app = express();
 
+// Railway (and most PaaS hosts) put the app behind a reverse proxy that sets
+// X-Forwarded-For. Without this, express-rate-limit can't tell real client
+// IPs apart and throws a validation error on every request.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {

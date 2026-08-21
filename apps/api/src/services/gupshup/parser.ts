@@ -3,7 +3,13 @@ import { normalizePhone } from "../../utils/phone.js";
 
 export function isInboundMessage(payload: any): payload is GupshupInboundPayload {
   const innerType = payload?.payload?.type;
-  return payload?.type === "message" && (innerType === "button_reply" || innerType === "list_reply");
+  // Confirmed from live traffic: Gupshup sends "quick_reply" for template
+  // button taps. button_reply/list_reply kept as a fallback for other
+  // interactive message types that may use those names instead.
+  return (
+    payload?.type === "message" &&
+    (innerType === "quick_reply" || innerType === "button_reply" || innerType === "list_reply")
+  );
 }
 
 export function isStatusEvent(payload: any): payload is GupshupStatusPayload {
