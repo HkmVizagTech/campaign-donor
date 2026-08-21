@@ -26,8 +26,9 @@ export default function ResponsesPage() {
       if (debouncedSearch) params.search = debouncedSearch;
       return api.campaignRecipients(campaignId, params);
     },
-    // Keep the list current as WhatsApp replies come in without a manual reload
-    refetchInterval: 15000,
+    // Live updates arrive instantly over SSE (see useLiveUpdates in the admin
+    // layout) — this poll is just a safety net if that connection drops.
+    refetchInterval: 60000,
   });
 
   const recipients = (data?.data || []) as any[];

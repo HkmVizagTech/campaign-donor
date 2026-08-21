@@ -6,6 +6,7 @@ import { BadRequestError, NotFoundError } from "../utils/errors.js";
 import { ImportBatchStatus } from "@garbha-gudi/shared";
 import { v4 as uuidv4 } from "uuid";
 import * as XLSX from "xlsx";
+import { emitAppEvent } from "../utils/events.js";
 
 interface ImportRow {
   [key: string]: string | number | undefined;
@@ -177,6 +178,8 @@ export async function importDonors(
   batch.status = ImportBatchStatus.Completed;
   batch.validationErrors = errors.slice(0, 100);
   await batch.save();
+
+  emitAppEvent({});
 
   return {
     batch,

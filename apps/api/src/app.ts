@@ -11,6 +11,7 @@ import importBatchRoutes from "./routes/importBatch.routes.js";
 import campaignRoutes from "./routes/campaign.routes.js";
 import exportRoutes from "./routes/export.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
+import eventsRoutes from "./routes/events.routes.js";
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use("/api/donors", donorRoutes);
 app.use("/api/import-batches", importBatchRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/reports", exportRoutes);
+app.use("/api/events", eventsRoutes);
 
 app.use(errorHandler);
 

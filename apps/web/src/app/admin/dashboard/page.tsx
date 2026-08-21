@@ -8,8 +8,9 @@ export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.dashboard(),
-    // Keep response counts fresh as WhatsApp replies come in without a manual reload
-    refetchInterval: 15000,
+    // Live updates arrive instantly over SSE (see useLiveUpdates in the admin
+    // layout) — this poll is just a safety net if that connection drops.
+    refetchInterval: 60000,
   });
 
   const stats = data?.data as any;

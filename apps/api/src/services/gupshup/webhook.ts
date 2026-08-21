@@ -6,6 +6,7 @@ import { logger } from "../../utils/logger.js";
 import { ResponseStatus, MessageStatus } from "@garbha-gudi/shared";
 import { ParsedButtonResponse, ParsedStatusEvent } from "./types.js";
 import { maskPhone } from "./parser.js";
+import { emitAppEvent } from "../../utils/events.js";
 
 const BUTTON_RESPONSE_MAP: Record<string, ResponseStatus> = {
   ATTEND_YES: ResponseStatus.Yes,
@@ -62,10 +63,14 @@ export async function handleButtonResponse(event: ParsedButtonResponse): Promise
     source: "whatsapp",
   });
 
-  // Recalculate campaign stats in the background (non-blocking)
-  recalculateStatsSafe(recipient.campaignId.toString()).catch((err) => {
-    logger.error("[Gupshup] Failed to recalculate stats", { error: err.message });
-  });
+  // Recalculate campaign stats in the background (non-blocking), then push a
+  // live-update event so admin portal tabs refresh without polling
+  const campaignIdStr = recipient.campaignId.toString();
+  recalculateStatsSafe(campaignIdStr)
+    .catch((err) => {
+      logger.error("[Gupshup] Failed to recalculate stats", { error: err.message });
+    })
+    .finally(() => emitAppEvent({ campaignId: campaignIdStr }));
 
   logger.info("[Gupshup] Response recorded", {
     phone: maskPhone(phone),
@@ -123,10 +128,13 @@ export async function handleMessageStatus(event: ParsedStatusEvent): Promise<voi
   recipient.externalMessageId = messageId;
   await recipient.save();
 
-  // Recalculate stats
-  recalculateStatsSafe(recipient.campaignId.toString()).catch((err) => {
-    logger.error("[Gupshup] Failed to recalculate stats", { error: err.message });
-  });
+  // Recalculate stats, then push a live-update event
+  const campaignIdStr = recipient.campaignId.toString();
+  recalculateStatsSafe(campaignIdStr)
+    .catch((err) => {
+      logger.error("[Gupshup] Failed to recalculate stats", { error: err.message });
+    })
+    .finally(() => emitAppEvent({ campaignId: campaignIdStr }));
 }
 
 async function findActiveRecipientByPhone(phone: string) {

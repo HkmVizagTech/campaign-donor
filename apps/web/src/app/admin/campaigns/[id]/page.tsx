@@ -18,10 +18,9 @@ export default function CampaignDetailPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["campaign", id],
     queryFn: () => api.campaign(id),
-    // Poll so response counts (WhatsApp replies keep arriving after the send
-    // itself finishes) and send progress update without a manual refresh.
-    // Faster while actively sending, slower otherwise.
-    refetchInterval: (query) => ((query.state.data as any)?.data?.status === "sending" ? 3000 : 15000),
+    // Live updates arrive instantly over SSE (see useLiveUpdates in the admin
+    // layout) — this poll is just a safety net if that connection drops.
+    refetchInterval: 60000,
   });
 
   const campaign = (data?.data || {}) as any;

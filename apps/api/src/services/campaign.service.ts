@@ -9,6 +9,7 @@ import { ResponseStatus, CampaignStatus } from "@garbha-gudi/shared";
 import { sendTemplateMessage } from "./gupshup/index.js";
 import { logger } from "../utils/logger.js";
 import { env } from "../config/env.js";
+import { emitAppEvent } from "../utils/events.js";
 
 export async function createCampaign(
   data: { name: string; description?: string; type?: string; templateId?: string; templateName?: string },
@@ -85,6 +86,8 @@ export async function addRecipients(campaignId: string, donorIds?: string[], add
   await Campaign.findByIdAndUpdate(campaignId, {
     totalRecipients: await CampaignRecipient.countDocuments({ campaignId }),
   });
+
+  emitAppEvent({ campaignId });
 
   return {
     inserted: insertedCount,
@@ -165,6 +168,7 @@ export async function updateResponse(
   });
 
   await recalculateStats(campaignId);
+  emitAppEvent({ campaignId });
   return recipient;
 }
 
@@ -174,6 +178,7 @@ export async function updateBrickStatus(campaignId: string, recipientId: string,
 
   recipient.brickStatus = brickStatus as any;
   await recipient.save();
+  emitAppEvent({ campaignId });
   return recipient;
 }
 
@@ -232,6 +237,7 @@ export async function sendCampaign(campaignId: string) {
 
   campaign.status = CampaignStatus.Sending;
   await campaign.save();
+  emitAppEvent({ campaignId });
 
   // Sending can take minutes for large recipient lists (rate-limited to 1/sec).
   // Kick it off in the background so the HTTP request returns immediately —
@@ -289,6 +295,7 @@ async function processCampaignSend(campaignId: string, templateId: string) {
       failed++;
     }
 
+    emitAppEvent({ campaignId });
     await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
   }
 
@@ -306,6 +313,7 @@ async function processCampaignSend(campaignId: string, templateId: string) {
     await campaign.save();
   }
 
+  emitAppEvent({ campaignId });
   logger.info("[Campaign] Send completed", { campaignId, sent, failed });
 }
 

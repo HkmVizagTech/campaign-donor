@@ -1,6 +1,7 @@
 import { Donor, IDonor } from "../models/Donor.js";
 import { NotFoundError } from "../utils/errors.js";
 import { normalizePhone } from "../utils/phone.js";
+import { emitAppEvent } from "../utils/events.js";
 
 interface DonorListParams {
   page: number;
@@ -48,11 +49,13 @@ export async function updateDonor(id: string, updates: Partial<IDonor>): Promise
 
 export async function createDonor(data: { name: string; phone: string; donationAmount?: number; donationReference?: string; brickName?: string }): Promise<IDonor> {
   const { v4: uuidv4 } = await import("uuid");
-  return Donor.create({
+  const donor = await Donor.create({
     ...data,
     phone: normalizePhone(data.phone),
     donorId: "DONOR-" + uuidv4().slice(0, 8).toUpperCase(),
   });
+  emitAppEvent({});
+  return donor;
 }
 
 export async function getDonorCount(): Promise<number> {
