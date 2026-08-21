@@ -137,6 +137,8 @@ export default function CampaignDetailPage() {
             {addAllMutation.isSuccess && (
               <div className="text-green-600 text-sm mb-4">
                 Added {(addAllMutation.data as any)?.data?.inserted || 0} recipients
+                {(addAllMutation.data as any)?.data?.duplicatePhonesSkipped > 0 &&
+                  ` (skipped ${(addAllMutation.data as any).data.duplicatePhonesSkipped} duplicate phone numbers)`}
               </div>
             )}
             <div className="flex gap-2 justify-end">

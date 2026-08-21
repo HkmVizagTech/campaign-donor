@@ -59,7 +59,17 @@ export async function addRecipients(campaignId: string, donorIds?: string[], add
 
   if (donors.length === 0) throw new BadRequestError("No donors found");
 
-  const recipientDocs = donors.map((d) => ({
+  // Multiple donor records can share the same phone (imports aren't deduped
+  // across batches) — keep only the first donor per phone so each number
+  // gets at most one WhatsApp message for this campaign.
+  const seenPhones = new Set<string>();
+  const uniqueDonors = donors.filter((d) => {
+    if (seenPhones.has(d.phone)) return false;
+    seenPhones.add(d.phone);
+    return true;
+  });
+
+  const recipientDocs = uniqueDonors.map((d) => ({
     campaignId: campaign._id,
     donorId: d._id,
     phone: d.phone,
@@ -76,7 +86,11 @@ export async function addRecipients(campaignId: string, donorIds?: string[], add
     totalRecipients: await CampaignRecipient.countDocuments({ campaignId }),
   });
 
-  return { inserted: insertedCount, total: donors.length };
+  return {
+    inserted: insertedCount,
+    total: donors.length,
+    duplicatePhonesSkipped: donors.length - uniqueDonors.length,
+  };
 }
 
 export async function getCampaignRecipients(

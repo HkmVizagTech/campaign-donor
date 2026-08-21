@@ -37,6 +37,7 @@ const campaignRecipientSchema = new Schema<ICampaignRecipient>(
 );
 
 campaignRecipientSchema.index({ campaignId: 1, donorId: 1 }, { unique: true });
+campaignRecipientSchema.index({ campaignId: 1, phone: 1 }, { unique: true });
 campaignRecipientSchema.index({ phone: 1 });
 campaignRecipientSchema.index({ campaignId: 1, response: 1 });
 
