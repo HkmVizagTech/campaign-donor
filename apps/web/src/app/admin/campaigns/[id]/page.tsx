@@ -12,7 +12,6 @@ export default function CampaignDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const id = params.id as string;
-  const [addingDonors, setAddingDonors] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendVars, setSendVars] = useState({ headerImageUrl: "", eventDate: "", eventTime: "", programItem: "" });
 
@@ -25,14 +24,6 @@ export default function CampaignDetailPage() {
   });
 
   const campaign = (data?.data || {}) as any;
-
-  const addAllMutation = useMutation({
-    mutationFn: () => api.addRecipients(id, { addAll: true }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
-      setAddingDonors(false);
-    },
-  });
 
   const sendMutation = useMutation({
     mutationFn: () => api.sendCampaign(id, sendVars),
@@ -92,13 +83,13 @@ export default function CampaignDetailPage() {
           >
             Export
           </Link>
-          {campaign.status === "draft" && (
-            <button
-              onClick={() => setAddingDonors(true)}
+          {campaign.status === "draft" && campaign.totalRecipients === 0 && (
+            <Link
+              href="/admin/donors/import"
               className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
             >
-              Add Donors
-            </button>
+              Import Donors
+            </Link>
           )}
           {(campaign.status === "draft" || campaign.status === "ready") && campaign.totalRecipients > 0 && (
             <button
@@ -124,38 +115,6 @@ export default function CampaignDetailPage() {
         <StatCard label="NO" value={campaign.totalNo} accent="red" />
         <StatCard label="Pending" value={campaign.totalPending} accent="yellow" />
       </div>
-
-      {/* Add Donors Modal */}
-      {addingDonors && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Add Donors to Campaign</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Add all donors from the database to this campaign. Each donor will receive a pending status.
-            </p>
-            {addAllMutation.isError && (
-              <div className="text-red-600 text-sm mb-4">{(addAllMutation.error as Error).message}</div>
-            )}
-            {addAllMutation.isSuccess && (
-              <div className="text-green-600 text-sm mb-4">
-                Added {(addAllMutation.data as any)?.data?.inserted || 0} recipients
-                {(addAllMutation.data as any)?.data?.duplicatePhonesSkipped > 0 &&
-                  ` (skipped ${(addAllMutation.data as any).data.duplicatePhonesSkipped} duplicate phone numbers)`}
-              </div>
-            )}
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setAddingDonors(false)} className="px-4 py-2 border rounded text-sm">Cancel</button>
-              <button
-                onClick={() => addAllMutation.mutate()}
-                disabled={addAllMutation.isPending}
-                className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-              >
-                {addAllMutation.isPending ? "Adding..." : "Add All Donors"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Send Messages Modal */}
       {sendModalOpen && (
