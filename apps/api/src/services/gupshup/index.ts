@@ -15,10 +15,13 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
     return { messageId: "mock-" + Date.now() };
   }
 
+  // Gupshup expects bare digits (country code + number), no leading "+"
+  const stripPlus = (phone: string) => phone.replace(/^\+/, "");
+
   const params = new URLSearchParams();
   params.append("channel", "whatsapp");
-  params.append("source", env.GUPSHUP_SOURCE_NUMBER);
-  params.append("destination", message.phone);
+  params.append("source", stripPlus(env.GUPSHUP_SOURCE_NUMBER));
+  params.append("destination", stripPlus(message.phone));
   params.append("src.name", env.GUPSHUP_APP_NAME);
 
   // For templates with a media header (image/video/document), Gupshup expects
@@ -34,6 +37,11 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
   logger.info("[Gupshup] Sending template message", {
     phone: message.phone,
     templateId: message.templateId,
+    paramCount: (templatePayload.params as unknown[]).length,
+    hasHeaderImage: !!message.headerImageUrl,
+    sourceConfigured: !!env.GUPSHUP_SOURCE_NUMBER,
+    appIdConfigured: !!env.GUPSHUP_APP_ID,
+    appNameConfigured: !!env.GUPSHUP_APP_NAME,
   });
 
   try {
@@ -66,6 +74,7 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
         phone: message.phone,
         httpStatus: response.status,
         detail,
+        rawResponse: text.slice(0, 500),
       });
       throw new Error(`Gupshup rejected (${response.status}): ${detail}`);
     }
