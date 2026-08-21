@@ -56,7 +56,11 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: env.GUPSHUP_API_KEY,
+        // The partner endpoint authenticates via a `token` header holding a
+        // partner app token (sk_...), NOT `Authorization`. `apikey` is sent
+        // too so a plain app API key also works; unknown headers are ignored.
+        token: env.GUPSHUP_API_KEY,
+        apikey: env.GUPSHUP_API_KEY,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),
