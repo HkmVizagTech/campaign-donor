@@ -39,6 +39,7 @@ export const campaignUpdateSchema = campaignCreateSchema.partial().extend({
 export const addRecipientsSchema = z.object({
   donorIds: z.array(z.string()).optional(),
   addAll: z.boolean().optional(),
+  importBatchId: z.string().optional(),
 });
 
 export const responseUpdateSchema = z.object({

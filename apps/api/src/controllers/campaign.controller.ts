@@ -65,8 +65,8 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 
 export async function addRecipients(req: Request, res: Response, next: NextFunction) {
   try {
-    const { donorIds, addAll } = req.body;
-    const result = await campaignService.addRecipients(getId(req), donorIds, addAll);
+    const { donorIds, addAll, importBatchId } = req.body;
+    const result = await campaignService.addRecipients(getId(req), donorIds, addAll, importBatchId);
 
     const admin = (req as AuthRequest).admin!;
     await AuditLog.create({

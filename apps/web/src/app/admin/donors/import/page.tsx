@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { Upload, ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Upload, ArrowRight, CheckCircle } from "lucide-react";
 
 type Step = "upload" | "map" | "preview" | "result";
 
@@ -24,6 +25,20 @@ export default function ImportDonorsPage() {
     brickName: "",
   });
   const [result, setResult] = useState<any>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+
+  const { data: campaignsData } = useQuery({
+    queryKey: ["campaigns"],
+    queryFn: () => api.campaigns(),
+  });
+  const draftCampaigns = ((campaignsData?.data || []) as any[]).filter((c) => c.status === "draft");
+
+  const addRecipientsMutation = useMutation({
+    mutationFn: (importBatchId: string) => api.addRecipients(selectedCampaignId, { importBatchId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", selectedCampaignId] });
+    },
+  });
 
   const previewMutation = useMutation({
     mutationFn: (formData: FormData) => api.previewImport(formData),
@@ -42,6 +57,9 @@ export default function ImportDonorsPage() {
       setResult(res.data);
       setStep("result");
       queryClient.invalidateQueries({ queryKey: ["donors"] });
+      if (selectedCampaignId && res.data) {
+        addRecipientsMutation.mutate((res.data as any).batch._id);
+      }
     },
   });
 
@@ -113,6 +131,28 @@ export default function ImportDonorsPage() {
           <Upload size={48} className="mx-auto text-gray-400 mb-4" />
           <p className="text-gray-600 mb-4">Upload your Excel or CSV file with donor data</p>
           <p className="text-xs text-gray-400 mb-4">Supported: .xlsx, .xls, .csv</p>
+
+          <div className="max-w-sm mx-auto mb-4 text-left">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Add these donors to campaign</label>
+            <select
+              value={selectedCampaignId}
+              onChange={(e) => setSelectedCampaignId(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">-- Don't add to a campaign --</option>
+              {draftCampaigns.map((c) => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+            {draftCampaigns.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                No draft campaigns yet.{" "}
+                <Link href="/admin/campaigns/new" className="text-blue-600 hover:underline">Create one</Link>
+                {" "}first if you want this sheet added to it automatically.
+              </p>
+            )}
+          </div>
+
           <input
             type="file"
             accept=".xlsx,.xls,.csv"
@@ -228,11 +268,35 @@ export default function ImportDonorsPage() {
             </div>
           </div>
 
+          {selectedCampaignId && (
+            <div className="mb-6 text-center text-sm">
+              {addRecipientsMutation.isPending && (
+                <span className="text-gray-500">Adding donors to campaign...</span>
+              )}
+              {addRecipientsMutation.isSuccess && (
+                <span className="text-green-700">
+                  Added {(addRecipientsMutation.data as any)?.data?.inserted || 0} donors to the campaign.{" "}
+                  <Link href={`/admin/campaigns/${selectedCampaignId}`} className="text-blue-600 hover:underline">
+                    View campaign
+                  </Link>
+                </span>
+              )}
+              {addRecipientsMutation.isError && (
+                <span className="text-red-600">
+                  Import succeeded, but adding to the campaign failed: {(addRecipientsMutation.error as Error).message}
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 justify-center">
             <button onClick={() => router.push("/admin/donors")} className="px-4 py-2 border rounded text-sm">
               View Donors
             </button>
-            <button onClick={() => { setStep("upload"); setFile(null); setResult(null); }} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+            <button
+              onClick={() => { setStep("upload"); setFile(null); setResult(null); setSelectedCampaignId(""); }}
+              className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+            >
               Import More
             </button>
           </div>

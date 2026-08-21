@@ -56,7 +56,12 @@ export async function updateCampaign(id: string, updates: Partial<ICampaign>) {
   return campaign;
 }
 
-export async function addRecipients(campaignId: string, donorIds?: string[], addAll?: boolean) {
+export async function addRecipients(
+  campaignId: string,
+  donorIds?: string[],
+  addAll?: boolean,
+  importBatchId?: string
+) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new NotFoundError("Campaign not found");
   if (campaign.status !== CampaignStatus.Draft) {
@@ -64,12 +69,14 @@ export async function addRecipients(campaignId: string, donorIds?: string[], add
   }
 
   let donors;
-  if (addAll) {
+  if (importBatchId) {
+    donors = await Donor.find({ importBatchId });
+  } else if (addAll) {
     donors = await Donor.find();
   } else if (donorIds && donorIds.length > 0) {
     donors = await Donor.find({ _id: { $in: donorIds } });
   } else {
-    throw new BadRequestError("Provide donorIds or set addAll to true");
+    throw new BadRequestError("Provide donorIds, importBatchId, or set addAll to true");
   }
 
   if (donors.length === 0) throw new BadRequestError("No donors found");
