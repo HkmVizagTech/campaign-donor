@@ -222,6 +222,7 @@ export async function sendCampaign(campaignId: string) {
         templateId: campaign.templateId!,
         variables: {
           name: donor?.name || "Donor",
+          donorId: donor?.donorId || "",
         },
       });
 

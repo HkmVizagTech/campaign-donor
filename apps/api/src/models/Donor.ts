@@ -20,7 +20,7 @@ export interface IDonor extends Document {
 
 const donorSchema = new Schema<IDonor>(
   {
-    donorId: { type: String, sparse: true },
+    donorId: { type: String },
     name: { type: String, required: true, trim: true },
     phone: { type: String, required: true, index: true },
     email: { type: String, trim: true, lowercase: true },

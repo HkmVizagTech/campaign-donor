@@ -41,18 +41,37 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
       body: params.toString(),
     });
 
-    const data = await response.json() as { status: string; messageId?: string; message?: string };
+    const text = await response.text();
+    let data: { status?: string; messageId?: string; message?: string; payload?: { payload?: { detail?: string; object?: string } } } | null = null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
 
-    if (data.status === "error" || data.status === "failed") {
-      logger.error("[Gupshup] Send failed", { phone: message.phone, error: data.message });
-      return null;
+    if (!response.ok || !data || data.status === "error" || data.status === "failed") {
+      const detail =
+        data?.message ||
+        data?.payload?.payload?.detail ||
+        data?.payload?.payload?.object ||
+        text.slice(0, 300) ||
+        `HTTP ${response.status}`;
+      logger.error("[Gupshup] Send failed", {
+        phone: message.phone,
+        httpStatus: response.status,
+        detail,
+      });
+      throw new Error(`Gupshup rejected (${response.status}): ${detail}`);
     }
 
     logger.info("[Gupshup] Message sent", { phone: message.phone, messageId: data.messageId });
     return { messageId: data.messageId || "" };
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Gupshup rejected")) {
+      throw error;
+    }
     logger.error("[Gupshup] API error", { phone: message.phone, error: (error as Error).message });
-    return null;
+    throw new Error(`Gupshup request failed: ${(error as Error).message}`);
   }
 }
 
