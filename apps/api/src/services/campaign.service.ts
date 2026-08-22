@@ -12,17 +12,7 @@ import { env } from "../config/env.js";
 import { emitAppEvent } from "../utils/events.js";
 
 export async function createCampaign(
-  data: {
-    name: string;
-    description?: string;
-    type?: string;
-    templateId?: string;
-    templateName?: string;
-    headerImageUrl?: string;
-    eventDate?: string;
-    eventTime?: string;
-    programItem?: string;
-  },
+  data: { name: string; description?: string; type?: string; templateId?: string; templateName?: string },
   adminId: string
 ) {
   return Campaign.create({
@@ -32,10 +22,6 @@ export async function createCampaign(
     type: data.type || "attendance",
     templateId: data.templateId || env.GUPSHUP_TEMPLATE_ID,
     templateName: data.templateName || env.GUPSHUP_TEMPLATE_NAME,
-    headerImageUrl: data.headerImageUrl,
-    eventDate: data.eventDate,
-    eventTime: data.eventTime,
-    programItem: data.programItem,
     createdBy: adminId,
   });
 }
@@ -235,7 +221,7 @@ export async function recalculateStats(campaignId: string) {
 
 export async function sendCampaign(
   campaignId: string,
-  messageVariables?: { headerImageUrl?: string; eventDate?: string; eventTime?: string; programItem?: string }
+  messageVariables?: { headerImageUrl?: string; templateVariables?: string[]; nameVariableIndex?: number }
 ) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new NotFoundError("Campaign not found");
@@ -264,9 +250,8 @@ export async function sendCampaign(
   // persist them on the campaign so re-sends/resumes reuse the same values.
   if (messageVariables) {
     if (messageVariables.headerImageUrl !== undefined) campaign.headerImageUrl = messageVariables.headerImageUrl;
-    if (messageVariables.eventDate !== undefined) campaign.eventDate = messageVariables.eventDate;
-    if (messageVariables.eventTime !== undefined) campaign.eventTime = messageVariables.eventTime;
-    if (messageVariables.programItem !== undefined) campaign.programItem = messageVariables.programItem;
+    if (messageVariables.templateVariables !== undefined) campaign.templateVariables = messageVariables.templateVariables;
+    if (messageVariables.nameVariableIndex !== undefined) campaign.nameVariableIndex = messageVariables.nameVariableIndex;
   }
 
   campaign.status = CampaignStatus.Sending;
@@ -279,9 +264,8 @@ export async function sendCampaign(
   processCampaignSend(campaignId, {
     templateId,
     headerImageUrl: campaign.headerImageUrl,
-    eventDate: campaign.eventDate,
-    eventTime: campaign.eventTime,
-    programItem: campaign.programItem,
+    templateVariables: campaign.templateVariables || [],
+    nameVariableIndex: campaign.nameVariableIndex ?? -1,
   }).catch((err) => {
     logger.error("[Campaign] Background send crashed", { campaignId, error: err.message });
   });
@@ -292,9 +276,8 @@ export async function sendCampaign(
 interface SendTemplateConfig {
   templateId: string;
   headerImageUrl?: string;
-  eventDate?: string;
-  eventTime?: string;
-  programItem?: string;
+  templateVariables: string[];
+  nameVariableIndex: number;
 }
 
 async function processCampaignSend(campaignId: string, template: SendTemplateConfig) {
@@ -314,17 +297,18 @@ async function processCampaignSend(campaignId: string, template: SendTemplateCon
     const phone = recipient.phone;
 
     try {
+      // Copy the fixed campaign-wide values, then drop in this donor's name
+      // at whichever position was marked as the personalized slot.
+      const values = [...template.templateVariables];
+      if (template.nameVariableIndex >= 0 && template.nameVariableIndex < values.length) {
+        values[template.nameVariableIndex] = donor?.name || "Donor";
+      }
+
       const result = await sendTemplateMessage({
         phone,
         templateId: template.templateId,
         headerImageUrl: template.headerImageUrl,
-        // Positional — must match the approved template's {{1}}..{{4}} order
-        variables: {
-          name: donor?.name || "Donor",
-          eventDate: template.eventDate || "",
-          eventTime: template.eventTime || "",
-          programItem: template.programItem || "",
-        },
+        variables: values,
       });
 
       if (result) {

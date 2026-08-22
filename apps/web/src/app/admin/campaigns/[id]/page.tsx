@@ -13,7 +13,9 @@ export default function CampaignDetailPage() {
   const queryClient = useQueryClient();
   const id = params.id as string;
   const [sendModalOpen, setSendModalOpen] = useState(false);
-  const [sendVars, setSendVars] = useState({ headerImageUrl: "", eventDate: "", eventTime: "", programItem: "" });
+  const [headerImageUrl, setHeaderImageUrl] = useState("");
+  const [values, setValues] = useState<string[]>([]);
+  const [nameIndex, setNameIndex] = useState(-1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["campaign", id],
@@ -27,8 +29,27 @@ export default function CampaignDetailPage() {
   // Recipients not yet successfully sent/delivered — what the next send/retry click will target
   const eligibleCount = Math.max((campaign.totalRecipients || 0) - (campaign.totalSent || 0), 0);
 
+  // Fetches the template's actual body/variable count from Gupshup so the
+  // modal below shows real {{n}} slots instead of guessed field names.
+  const templateInfoMutation = useMutation({
+    mutationFn: () => api.templateInfo(),
+    onSuccess: (res: any) => {
+      const info = res.data;
+      const prevValues: string[] = campaign.templateVariables || [];
+      setValues(Array.from({ length: info.variableCount }, (_, i) => prevValues[i] || ""));
+      const savedNameIndex = campaign.nameVariableIndex;
+      setNameIndex(
+        typeof savedNameIndex === "number" && savedNameIndex >= 0 && savedNameIndex < info.variableCount
+          ? savedNameIndex
+          : -1
+      );
+      setHeaderImageUrl(campaign.headerImageUrl || "");
+    },
+  });
+
   const sendMutation = useMutation({
-    mutationFn: () => api.sendCampaign(id, sendVars),
+    mutationFn: () =>
+      api.sendCampaign(id, { headerImageUrl, templateVariables: values, nameVariableIndex: nameIndex }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["campaign", id] });
       setSendModalOpen(false);
@@ -37,13 +58,8 @@ export default function CampaignDetailPage() {
   });
 
   const openSendModal = () => {
-    setSendVars({
-      headerImageUrl: campaign.headerImageUrl || "",
-      eventDate: campaign.eventDate || "",
-      eventTime: campaign.eventTime || "",
-      programItem: campaign.programItem || "",
-    });
     setSendModalOpen(true);
+    templateInfoMutation.mutate();
   };
 
   const statusColors: Record<string, string> = {
@@ -123,55 +139,75 @@ export default function CampaignDetailPage() {
       {/* Send Messages Modal */}
       {sendModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-1">{campaign.totalFailed > 0 ? "Retry Failed Messages" : "Send Messages"}</h3>
             <p className="text-sm text-gray-600 mb-4">
               {campaign.totalFailed > 0
-                ? `Retrying ${eligibleCount} recipients who haven't received a message yet (including ${campaign.totalFailed} failed). Fill in the message details below.`
-                : `Sending to ${eligibleCount} recipients. Fill in the message details below.`}
+                ? `Retrying ${eligibleCount} recipients who haven't received a message yet (including ${campaign.totalFailed} failed).`
+                : `Sending to ${eligibleCount} recipients.`}
             </p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Header Image URL</label>
-                <input
-                  type="text"
-                  value={sendVars.headerImageUrl}
-                  onChange={(e) => setSendVars({ ...sendVars, headerImageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
+
+            {templateInfoMutation.isPending && (
+              <div className="text-sm text-gray-500 py-4">Loading template details...</div>
+            )}
+
+            {templateInfoMutation.isError && (
+              <div className="text-red-600 text-sm py-4">
+                Couldn&apos;t load template details: {(templateInfoMutation.error as Error).message}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
-                <input
-                  type="text"
-                  value={sendVars.eventDate}
-                  onChange={(e) => setSendVars({ ...sendVars, eventDate: e.target.value })}
-                  placeholder="e.g. 24th August 2026"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Event Time</label>
-                <input
-                  type="text"
-                  value={sendVars.eventTime}
-                  onChange={(e) => setSendVars({ ...sendVars, eventTime: e.target.value })}
-                  placeholder="e.g. 5:00 PM"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Program Item</label>
-                <input
-                  type="text"
-                  value={sendVars.programItem}
-                  onChange={(e) => setSendVars({ ...sendVars, programItem: e.target.value })}
-                  placeholder="e.g. Bhoomi Puja & Shilanyas"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
+            )}
+
+            {templateInfoMutation.isSuccess && (
+              <>
+                <p className="text-xs text-gray-500 mb-1">Approved template text (for reference):</p>
+                <div className="bg-gray-50 border rounded p-3 mb-4 text-sm text-gray-700 whitespace-pre-wrap">
+                  {(templateInfoMutation.data as any).data.body}
+                </div>
+
+                {(templateInfoMutation.data as any).data.needsHeaderMedia && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Header Image URL</label>
+                    <input
+                      type="text"
+                      value={headerImageUrl}
+                      onChange={(e) => setHeaderImageUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {values.map((val, i) => (
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-sm font-medium text-gray-700">{`{{${i + 1}}}`}</label>
+                        <label className="flex items-center gap-1 text-xs text-gray-500">
+                          <input
+                            type="checkbox"
+                            checked={nameIndex === i}
+                            onChange={(e) => setNameIndex(e.target.checked ? i : -1)}
+                          />
+                          Use donor&apos;s name
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={nameIndex === i ? "" : val}
+                        disabled={nameIndex === i}
+                        onChange={(e) => {
+                          const next = [...values];
+                          next[i] = e.target.value;
+                          setValues(next);
+                        }}
+                        placeholder={nameIndex === i ? "Personalized per recipient" : `Value for {{${i + 1}}}`}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-100"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {sendMutation.isError && (
               <div className="text-red-600 text-sm mt-4">{(sendMutation.error as Error).message}</div>
@@ -181,7 +217,7 @@ export default function CampaignDetailPage() {
               <button onClick={() => setSendModalOpen(false)} className="px-4 py-2 border rounded text-sm">Cancel</button>
               <button
                 onClick={() => sendMutation.mutate()}
-                disabled={sendMutation.isPending}
+                disabled={sendMutation.isPending || !templateInfoMutation.isSuccess}
                 className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
               >
                 {sendMutation.isPending ? "Starting..." : `Send to ${eligibleCount}`}

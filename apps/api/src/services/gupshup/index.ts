@@ -4,9 +4,57 @@ import { logger } from "../../utils/logger.js";
 export interface GupshupMessage {
   phone: string;
   templateId: string;
-  variables?: Record<string, string>;
+  // Positional — variables[0] fills {{1}}, variables[1] fills {{2}}, etc.
+  // Kept as a plain array (not a keyed object) specifically so there's no
+  // "does insertion order match {{n}} order" ambiguity to get wrong.
+  variables?: string[];
   // Public URL for the template's media header (image/video/document), if any
   headerImageUrl?: string;
+}
+
+export interface GupshupTemplateInfo {
+  id: string;
+  elementName: string;
+  body: string;
+  headerType: string;
+  needsHeaderMedia: boolean;
+  variableCount: number;
+}
+
+export async function getTemplateInfo(templateId: string): Promise<GupshupTemplateInfo> {
+  const url = `https://api.gupshup.io/wa/app/${env.GUPSHUP_APP_ID}/template/${templateId}`;
+  const response = await fetch(url, {
+    headers: { apikey: env.GUPSHUP_API_KEY },
+  });
+
+  const text = await response.text();
+  let data: any = null;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok || !data || data.status !== "success" || !data.template) {
+    const detail = data?.message || text.slice(0, 300) || `HTTP ${response.status}`;
+    throw new Error(`Failed to fetch template info (${response.status}): ${detail}`);
+  }
+
+  const body: string = data.template.data || "";
+  const headerType: string = data.template.templateType || "TEXT";
+  const variableNumbers = new Set<number>();
+  for (const match of body.matchAll(/\{\{(\d+)\}\}/g)) {
+    variableNumbers.add(parseInt(match[1], 10));
+  }
+
+  return {
+    id: data.template.id,
+    elementName: data.template.elementName,
+    body,
+    headerType,
+    needsHeaderMedia: headerType !== "TEXT",
+    variableCount: variableNumbers.size,
+  };
 }
 
 export async function sendTemplateMessage(message: GupshupMessage): Promise<{ messageId: string } | null> {
@@ -27,7 +75,7 @@ export async function sendTemplateMessage(message: GupshupMessage): Promise<{ me
   // `params` holds ONLY the body's positional variables ({{1}}..{{n}}).
   // A media header is passed separately in the `message` field below —
   // putting it in `params` inflates the count and Gupshup rejects the send.
-  const bodyParams = message.variables ? Object.values(message.variables) : [];
+  const bodyParams = message.variables || [];
   const templatePayload: Record<string, unknown> = {
     id: message.templateId,
     params: bodyParams,

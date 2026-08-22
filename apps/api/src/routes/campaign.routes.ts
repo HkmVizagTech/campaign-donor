@@ -3,7 +3,7 @@ import {
   create, list, getById, update,
   addRecipients, getRecipients,
   updateResponse, updateBrickStatus,
-  getStats, dashboard, send,
+  getStats, dashboard, send, getTemplateInfo,
 } from "../controllers/campaign.controller.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -13,6 +13,9 @@ router.use(authenticate);
 
 // Dashboard
 router.get("/dashboard", dashboard);
+
+// Template info (fetched from Gupshup) — must come before /:id
+router.get("/template-info", getTemplateInfo);
 
 // Campaign CRUD
 router.get("/", list);

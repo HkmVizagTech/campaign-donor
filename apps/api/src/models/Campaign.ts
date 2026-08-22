@@ -10,9 +10,12 @@ export interface ICampaign extends Document {
   templateId?: string;
   templateName?: string;
   headerImageUrl?: string;
-  eventDate?: string;
-  eventTime?: string;
-  programItem?: string;
+  // Positional values for the template's {{1}}..{{n}} body variables, fetched
+  // and filled in at send time based on the template's actual variable count.
+  templateVariables?: string[];
+  // 0-indexed position within templateVariables that gets replaced with the
+  // donor's name per recipient; -1 (or unset) means no personalized slot.
+  nameVariableIndex?: number;
   totalRecipients: number;
   totalSent: number;
   totalDelivered: number;
@@ -35,9 +38,8 @@ const campaignSchema = new Schema<ICampaign>(
     templateId: { type: String },
     templateName: { type: String },
     headerImageUrl: { type: String, trim: true },
-    eventDate: { type: String, trim: true },
-    eventTime: { type: String, trim: true },
-    programItem: { type: String, trim: true },
+    templateVariables: { type: [String], default: undefined },
+    nameVariableIndex: { type: Number, default: -1 },
     totalRecipients: { type: Number, default: 0 },
     totalSent: { type: Number, default: 0 },
     totalDelivered: { type: Number, default: 0 },

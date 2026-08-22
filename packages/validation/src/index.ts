@@ -26,10 +26,14 @@ export const campaignCreateSchema = z.object({
   type: z.enum(["attendance", "fundraising", "general"]).default("attendance"),
   templateId: z.string().optional(),
   templateName: z.string().optional(),
+});
+
+// Message variables are filled in at send time, not campaign creation —
+// see sendCampaign / the campaign detail page's Send Messages modal.
+export const sendCampaignSchema = z.object({
   headerImageUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  eventDate: z.string().optional(),
-  eventTime: z.string().optional(),
-  programItem: z.string().optional(),
+  templateVariables: z.array(z.string()).optional(),
+  nameVariableIndex: z.number().optional(),
 });
 
 export const campaignUpdateSchema = campaignCreateSchema.partial().extend({

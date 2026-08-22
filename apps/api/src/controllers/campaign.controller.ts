@@ -1,10 +1,22 @@
 import { Request, Response, NextFunction } from "express";
 import * as campaignService from "../services/campaign.service.js";
+import { getTemplateInfo as fetchGupshupTemplateInfo } from "../services/gupshup/index.js";
 import { AuthRequest } from "../middleware/auth.js";
 import { AuditLog } from "../models/AuditLog.js";
+import { env } from "../config/env.js";
 
 function getId(req: Request): string {
   return String(req.params.id);
+}
+
+export async function getTemplateInfo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const templateId = (req.query.templateId as string) || env.GUPSHUP_TEMPLATE_ID;
+    const info = await fetchGupshupTemplateInfo(templateId);
+    res.json({ success: true, data: info });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function create(req: Request, res: Response, next: NextFunction) {
@@ -150,9 +162,9 @@ export async function updateBrickStatus(req: Request, res: Response, next: NextF
 export async function send(req: Request, res: Response, next: NextFunction) {
   try {
     const admin = (req as AuthRequest).admin!;
-    const { headerImageUrl, eventDate, eventTime, programItem } = req.body || {};
+    const { headerImageUrl, templateVariables, nameVariableIndex } = req.body || {};
     const result = await campaignService.sendCampaign(getId(req), {
-      headerImageUrl, eventDate, eventTime, programItem,
+      headerImageUrl, templateVariables, nameVariableIndex,
     });
 
     await AuditLog.create({
