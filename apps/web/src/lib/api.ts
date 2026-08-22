@@ -94,11 +94,13 @@ export const api = {
   importBatch: (id: string) => request<ApiResponse<unknown>>("/import-batches/" + id),
 
   campaigns: () => request<ApiResponse<unknown[]>>("/campaigns"),
-  templateInfo: () =>
-    request<ApiResponse<{
+  templateInfo: (templateId?: string) => {
+    const qs = templateId ? "?" + new URLSearchParams({ templateId }).toString() : "";
+    return request<ApiResponse<{
       id: string; elementName: string; body: string; headerType: string;
       needsHeaderMedia: boolean; variableCount: number;
-    }>>("/campaigns/template-info"),
+    }>>("/campaigns/template-info" + qs);
+  },
   createCampaign: (data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),

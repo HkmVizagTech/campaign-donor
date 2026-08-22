@@ -221,13 +221,31 @@ export async function recalculateStats(campaignId: string) {
 
 export async function sendCampaign(
   campaignId: string,
-  messageVariables?: { headerImageUrl?: string; templateVariables?: string[]; nameVariableIndex?: number }
+  messageVariables?: {
+    templateId?: string;
+    templateName?: string;
+    headerImageUrl?: string;
+    templateVariables?: string[];
+    nameVariableIndex?: number;
+  }
 ) {
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new NotFoundError("Campaign not found");
 
   if (campaign.status === CampaignStatus.Sending) {
     throw new BadRequestError("Campaign is already sending");
+  }
+
+  // The template itself, and its message variables, are set at send time —
+  // persist them on the campaign so re-sends/resumes reuse the same values.
+  // Applied before resolving templateId below so a change takes effect
+  // immediately on this send, not just on the next one.
+  if (messageVariables) {
+    if (messageVariables.templateId) campaign.templateId = messageVariables.templateId;
+    if (messageVariables.templateName) campaign.templateName = messageVariables.templateName;
+    if (messageVariables.headerImageUrl !== undefined) campaign.headerImageUrl = messageVariables.headerImageUrl;
+    if (messageVariables.templateVariables !== undefined) campaign.templateVariables = messageVariables.templateVariables;
+    if (messageVariables.nameVariableIndex !== undefined) campaign.nameVariableIndex = messageVariables.nameVariableIndex;
   }
 
   // Fall back to the configured default template if the campaign has none of its own
@@ -244,14 +262,6 @@ export async function sendCampaign(
 
   if (totalRecipients === 0) {
     throw new BadRequestError("No unsent recipients found");
-  }
-
-  // Message variables are filled in at send time, not campaign creation —
-  // persist them on the campaign so re-sends/resumes reuse the same values.
-  if (messageVariables) {
-    if (messageVariables.headerImageUrl !== undefined) campaign.headerImageUrl = messageVariables.headerImageUrl;
-    if (messageVariables.templateVariables !== undefined) campaign.templateVariables = messageVariables.templateVariables;
-    if (messageVariables.nameVariableIndex !== undefined) campaign.nameVariableIndex = messageVariables.nameVariableIndex;
   }
 
   campaign.status = CampaignStatus.Sending;

@@ -13,6 +13,7 @@ export default function CampaignDetailPage() {
   const queryClient = useQueryClient();
   const id = params.id as string;
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [templateId, setTemplateId] = useState("");
   const [headerImageUrl, setHeaderImageUrl] = useState("");
   const [values, setValues] = useState<string[]>([]);
   const [nameIndex, setNameIndex] = useState(-1);
@@ -29,27 +30,40 @@ export default function CampaignDetailPage() {
   // Recipients not yet successfully sent/delivered — what the next send/retry click will target
   const eligibleCount = Math.max((campaign.totalRecipients || 0) - (campaign.totalSent || 0), 0);
 
-  // Fetches the template's actual body/variable count from Gupshup so the
-  // modal below shows real {{n}} slots instead of guessed field names.
+  // Fetches a template's actual body/variable count from Gupshup so the modal
+  // below shows real {{n}} slots instead of guessed field names — callable
+  // with any template ID, not just the campaign's current one, so switching
+  // templates re-loads the right shape.
   const templateInfoMutation = useMutation({
-    mutationFn: () => api.templateInfo(),
+    mutationFn: (idToFetch: string) => api.templateInfo(idToFetch),
     onSuccess: (res: any) => {
       const info = res.data;
-      const prevValues: string[] = campaign.templateVariables || [];
+      // Only reuse previously-saved values if this is still the campaign's
+      // own saved template — a different template starts with blank slots.
+      const isSavedTemplate = info.id === campaign.templateId;
+      const prevValues: string[] = isSavedTemplate ? campaign.templateVariables || [] : [];
       setValues(Array.from({ length: info.variableCount }, (_, i) => prevValues[i] || ""));
-      const savedNameIndex = campaign.nameVariableIndex;
+      const savedNameIndex = isSavedTemplate ? campaign.nameVariableIndex : undefined;
       setNameIndex(
         typeof savedNameIndex === "number" && savedNameIndex >= 0 && savedNameIndex < info.variableCount
           ? savedNameIndex
           : -1
       );
-      setHeaderImageUrl(campaign.headerImageUrl || "");
+      setHeaderImageUrl(isSavedTemplate ? campaign.headerImageUrl || "" : "");
     },
   });
 
   const sendMutation = useMutation({
-    mutationFn: () =>
-      api.sendCampaign(id, { headerImageUrl, templateVariables: values, nameVariableIndex: nameIndex }),
+    mutationFn: () => {
+      const info = templateInfoMutation.data as any;
+      return api.sendCampaign(id, {
+        templateId,
+        templateName: info?.data?.elementName,
+        headerImageUrl,
+        templateVariables: values,
+        nameVariableIndex: nameIndex,
+      });
+    },
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["campaign", id] });
       setSendModalOpen(false);
@@ -58,8 +72,10 @@ export default function CampaignDetailPage() {
   });
 
   const openSendModal = () => {
+    const initialTemplateId = campaign.templateId || "";
+    setTemplateId(initialTemplateId);
     setSendModalOpen(true);
-    templateInfoMutation.mutate();
+    templateInfoMutation.mutate(initialTemplateId);
   };
 
   const statusColors: Record<string, string> = {
@@ -146,6 +162,29 @@ export default function CampaignDetailPage() {
                 ? `Retrying ${eligibleCount} recipients who haven't received a message yet (including ${campaign.totalFailed} failed).`
                 : `Sending to ${eligibleCount} recipients.`}
             </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Template ID</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  placeholder="Gupshup template ID"
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={() => templateInfoMutation.mutate(templateId)}
+                  disabled={!templateId || templateInfoMutation.isPending}
+                  className="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap"
+                >
+                  Load Variables
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Change this and click Load Variables to switch which template this send uses.
+              </p>
+            </div>
 
             {templateInfoMutation.isPending && (
               <div className="text-sm text-gray-500 py-4">Loading template details...</div>
