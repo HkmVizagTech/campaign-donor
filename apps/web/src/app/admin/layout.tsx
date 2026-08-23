@@ -10,6 +10,7 @@ import {
   Users,
   Upload,
   Megaphone,
+  Search,
   Settings,
   LogOut,
   Menu,
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/admin/donors", label: "All Donors", icon: Users },
   { href: "/admin/donors/import", label: "Import Donors", icon: Upload },
   { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/admin/bricks", label: "Brick Counter", icon: Search },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

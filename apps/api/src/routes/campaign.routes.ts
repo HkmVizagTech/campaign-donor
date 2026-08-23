@@ -3,7 +3,7 @@ import {
   create, list, getById, update,
   addRecipients, getRecipients,
   updateResponse, updateBrickStatus,
-  getStats, dashboard, send, getTemplateInfo,
+  getStats, dashboard, send, getTemplateInfo, searchRecipients,
 } from "../controllers/campaign.controller.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -16,6 +16,9 @@ router.get("/dashboard", dashboard);
 
 // Template info (fetched from Gupshup) — must come before /:id
 router.get("/template-info", getTemplateInfo);
+
+// Counter lookup: search recipients across all campaigns — must come before /:id
+router.get("/recipients/search", searchRecipients);
 
 // Campaign CRUD
 router.get("/", list);

@@ -101,6 +101,8 @@ export const api = {
       needsHeaderMedia: boolean; variableCount: number;
     }>>("/campaigns/template-info" + qs);
   },
+  searchRecipients: (q: string) =>
+    request<ApiResponse<unknown[]>>("/campaigns/recipients/search?" + new URLSearchParams({ q }).toString()),
   createCampaign: (data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),

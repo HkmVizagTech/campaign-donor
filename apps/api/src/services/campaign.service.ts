@@ -103,6 +103,43 @@ export async function addRecipients(
   };
 }
 
+// Counter lookup: search recipients across ALL campaigns by phone, donor
+// name, or donor ID — used to quickly find a patron and mark their brick
+// handed over without needing to know which campaign they belong to.
+export async function searchRecipients(query: string) {
+  return CampaignRecipient.aggregate([
+    {
+      $lookup: {
+        from: "donors",
+        localField: "donorId",
+        foreignField: "_id",
+        as: "donor",
+      },
+    },
+    { $unwind: { path: "$donor", preserveNullAndEmptyArrays: true } },
+    {
+      $match: {
+        $or: [
+          { phone: { $regex: query, $options: "i" } },
+          { "donor.name": { $regex: query, $options: "i" } },
+          { "donor.donorId": { $regex: query, $options: "i" } },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "campaigns",
+        localField: "campaignId",
+        foreignField: "_id",
+        as: "campaign",
+      },
+    },
+    { $unwind: { path: "$campaign", preserveNullAndEmptyArrays: true } },
+    { $sort: { updatedAt: -1 } },
+    { $limit: 20 },
+  ]);
+}
+
 export async function getCampaignRecipients(
   campaignId: string,
   params: { page: number; limit: number; response?: string; messageStatus?: string; search?: string }

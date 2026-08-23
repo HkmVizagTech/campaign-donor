@@ -19,6 +19,20 @@ export async function getTemplateInfo(req: Request, res: Response, next: NextFun
   }
 }
 
+export async function searchRecipients(req: Request, res: Response, next: NextFunction) {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (!q) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+    const results = await campaignService.searchRecipients(q);
+    res.json({ success: true, data: results });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const admin = (req as AuthRequest).admin!;
