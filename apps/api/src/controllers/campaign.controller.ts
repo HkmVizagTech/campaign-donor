@@ -22,11 +22,8 @@ export async function getTemplateInfo(req: Request, res: Response, next: NextFun
 export async function searchRecipients(req: Request, res: Response, next: NextFunction) {
   try {
     const q = String(req.query.q || "").trim();
-    if (!q) {
-      res.json({ success: true, data: [] });
-      return;
-    }
-    const results = await campaignService.searchRecipients(q);
+    const brickStatus = req.query.brickStatus ? String(req.query.brickStatus) : undefined;
+    const results = await campaignService.searchRecipients(q || undefined, brickStatus);
     res.json({ success: true, data: results });
   } catch (err) {
     next(err);

@@ -1,5 +1,6 @@
 import { Donor, IDonor } from "../models/Donor.js";
-import { NotFoundError } from "../utils/errors.js";
+import { BrickIssuance } from "../models/BrickIssuance.js";
+import { NotFoundError, BadRequestError } from "../utils/errors.js";
 import { normalizePhone } from "../utils/phone.js";
 import { emitAppEvent } from "../utils/events.js";
 
@@ -60,4 +61,35 @@ export async function createDonor(data: { name: string; phone: string; donationA
 
 export async function getDonorCount(): Promise<number> {
   return Donor.countDocuments();
+}
+
+export async function issueBrick(
+  donorId: string,
+  data: { type: "free" | "paid"; referenceNumber: string; amount?: number },
+  adminId: string
+) {
+  const donor = await Donor.findById(donorId);
+  if (!donor) throw new NotFoundError("Donor not found");
+
+  if (!data.referenceNumber?.trim()) {
+    throw new BadRequestError("Reference number is required to issue a brick");
+  }
+  if (data.type !== "free" && data.type !== "paid") {
+    throw new BadRequestError("Type must be 'free' or 'paid'");
+  }
+
+  const issuance = await BrickIssuance.create({
+    donorId,
+    type: data.type,
+    referenceNumber: data.referenceNumber.trim(),
+    amount: data.type === "paid" ? data.amount : undefined,
+    issuedBy: adminId,
+  });
+
+  emitAppEvent({});
+  return issuance;
+}
+
+export async function getBrickIssuances(donorId: string) {
+  return BrickIssuance.find({ donorId }).sort({ createdAt: -1 });
 }

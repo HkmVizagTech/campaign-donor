@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as donorService from "../services/donor.service.js";
+import { AuthRequest } from "../middleware/auth.js";
+import { AuditLog } from "../models/AuditLog.js";
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
@@ -36,6 +38,35 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const donor = await donorService.updateDonor(String(req.params.id), req.body);
     res.json({ success: true, data: donor });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function issueBrick(req: Request, res: Response, next: NextFunction) {
+  try {
+    const admin = (req as AuthRequest).admin!;
+    const donorId = String(req.params.id);
+    const issuance = await donorService.issueBrick(donorId, req.body, admin._id.toString());
+
+    await AuditLog.create({
+      adminId: admin._id,
+      action: "brick_issued",
+      entity: "donor",
+      entityId: donorId as any,
+      metadata: { type: issuance.type, referenceNumber: issuance.referenceNumber, amount: issuance.amount },
+    });
+
+    res.status(201).json({ success: true, data: issuance });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getBrickIssuances(req: Request, res: Response, next: NextFunction) {
+  try {
+    const issuances = await donorService.getBrickIssuances(String(req.params.id));
+    res.json({ success: true, data: issuances });
   } catch (err) {
     next(err);
   }

@@ -79,6 +79,9 @@ export const api = {
     request<ApiResponse<unknown>>("/donors", { method: "POST", body: JSON.stringify(data) }),
   updateDonor: (id: string, data: unknown) =>
     request<ApiResponse<unknown>>("/donors/" + id, { method: "PUT", body: JSON.stringify(data) }),
+  issueBrick: (donorId: string, data: { type: "free" | "paid"; referenceNumber: string; amount?: number }) =>
+    request<ApiResponse<unknown>>("/donors/" + donorId + "/bricks", { method: "POST", body: JSON.stringify(data) }),
+  brickIssuances: (donorId: string) => request<ApiResponse<unknown[]>>("/donors/" + donorId + "/bricks"),
 
   importDonors: (formData: FormData) =>
     request<ApiResponse<{ batch: unknown; summary: unknown }>>("/import-batches/import", {
@@ -101,8 +104,13 @@ export const api = {
       needsHeaderMedia: boolean; variableCount: number;
     }>>("/campaigns/template-info" + qs);
   },
-  searchRecipients: (q: string) =>
-    request<ApiResponse<unknown[]>>("/campaigns/recipients/search?" + new URLSearchParams({ q }).toString()),
+  searchRecipients: (q?: string, brickStatus?: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (brickStatus) params.set("brickStatus", brickStatus);
+    const qs = params.toString();
+    return request<ApiResponse<unknown[]>>("/campaigns/recipients/search" + (qs ? "?" + qs : ""));
+  },
   createCampaign: (data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),

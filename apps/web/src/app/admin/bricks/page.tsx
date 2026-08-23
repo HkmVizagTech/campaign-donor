@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Search, CheckCircle } from "lucide-react";
+import { Search, CheckCircle, PlusCircle } from "lucide-react";
 
 const BRICK_LABELS: Record<string, string> = {
   not_required: "N/A",
@@ -21,32 +21,31 @@ const BRICK_COLORS: Record<string, string> = {
   handed_over: "bg-green-100 text-green-700",
 };
 
-export default function BrickCounterPage() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [searched, setSearched] = useState(false);
+type StatusFilter = "" | "pending" | "confirmed" | "prepared" | "handed_over";
 
-  const searchMutation = useMutation({
-    mutationFn: (q: string) => api.searchRecipients(q),
-    onSuccess: (res: any) => {
-      setResults(res.data || []);
-      setSearched(true);
-    },
+export default function BrickCounterPage() {
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
+  const [issuingFor, setIssuingFor] = useState<any>(null);
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["brickSearch", searchTerm, statusFilter],
+    queryFn: () => api.searchRecipients(searchTerm || undefined, statusFilter || undefined),
   });
+
+  const results = (data?.data || []) as any[];
 
   const updateBrickMutation = useMutation({
     mutationFn: ({ campaignId, recipientId, brickStatus }: { campaignId: string; recipientId: string; brickStatus: string }) =>
       api.updateBrickStatus(campaignId, recipientId, brickStatus),
-    onSuccess: (_res, variables) => {
-      setResults((prev) =>
-        prev.map((r) => (r._id === variables.recipientId ? { ...r, brickStatus: variables.brickStatus } : r))
-      );
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brickSearch"] }),
   });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) searchMutation.mutate(query.trim());
+    setSearchTerm(query.trim());
   };
 
   return (
@@ -54,9 +53,10 @@ export default function BrickCounterPage() {
       <h1 className="text-2xl font-bold mb-2">Brick Counter</h1>
       <p className="text-gray-600 mb-6">
         Search by phone number, donor name, or donor ID to find a patron and mark their brick handed over.
+        Showing recently updated records by default.
       </p>
 
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6 max-w-xl">
+      <form onSubmit={handleSearch} className="flex gap-2 mb-4 max-w-xl">
         <input
           type="text"
           autoFocus
@@ -67,7 +67,7 @@ export default function BrickCounterPage() {
         />
         <button
           type="submit"
-          disabled={!query.trim() || searchMutation.isPending}
+          disabled={isFetching}
           className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
         >
           <Search size={18} />
@@ -75,15 +75,23 @@ export default function BrickCounterPage() {
         </button>
       </form>
 
-      {searchMutation.isPending && <div className="text-gray-500">Searching...</div>}
+      <div className="flex gap-1 mb-6">
+        {(["", "pending", "confirmed", "prepared", "handed_over"] as StatusFilter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setStatusFilter(f)}
+            className={`px-3 py-1 rounded text-sm ${
+              statusFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {f === "" ? "All" : BRICK_LABELS[f]}
+          </button>
+        ))}
+      </div>
 
-      {searchMutation.isError && (
-        <div className="text-red-600 text-sm">{(searchMutation.error as Error).message}</div>
-      )}
+      {isLoading && <div className="text-gray-500">Loading...</div>}
 
-      {searched && !searchMutation.isPending && results.length === 0 && (
-        <div className="text-gray-500">No matching donor found.</div>
-      )}
+      {!isLoading && results.length === 0 && <div className="text-gray-500">No matching records found.</div>}
 
       <div className="space-y-3 max-w-2xl">
         {results.map((r) => (
@@ -93,6 +101,7 @@ export default function BrickCounterPage() {
               <div className="text-sm text-gray-500">
                 {r.phone} &middot; {r.donor?.donorId || "-"}
                 {r.donor?.brickName && <> &middot; Brick: {r.donor.brickName}</>}
+                {r.donor?.sevaCategory && <> &middot; {r.donor.sevaCategory}</>}
               </div>
               <div className="text-xs text-gray-400 mt-1">Campaign: {r.campaign?.name || "-"}</div>
             </div>
@@ -103,7 +112,7 @@ export default function BrickCounterPage() {
               </span>
 
               {r.brickStatus === "handed_over" ? (
-                <span className="flex items-center gap-1 text-green-700 text-sm font-medium px-3 py-2">
+                <span className="flex items-center gap-1 text-green-700 text-sm font-medium px-2">
                   <CheckCircle size={16} /> Handed Over
                 </span>
               ) : (
@@ -112,7 +121,7 @@ export default function BrickCounterPage() {
                     updateBrickMutation.mutate({ campaignId: r.campaignId, recipientId: r._id, brickStatus: "handed_over" })
                   }
                   disabled={updateBrickMutation.isPending}
-                  className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                  className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                 >
                   Mark Handed Over
                 </button>
@@ -131,6 +140,14 @@ export default function BrickCounterPage() {
                 <option value="prepared">Prepared</option>
                 <option value="handed_over">Handed Over</option>
               </select>
+
+              <button
+                onClick={() => setIssuingFor(r)}
+                title="Issue an additional brick"
+                className="flex items-center gap-1 px-3 py-2 border rounded text-sm hover:bg-gray-50 whitespace-nowrap"
+              >
+                <PlusCircle size={14} /> Extra Brick
+              </button>
             </div>
           </div>
         ))}
@@ -139,6 +156,115 @@ export default function BrickCounterPage() {
       {updateBrickMutation.isError && (
         <div className="text-red-600 text-sm mt-4">{(updateBrickMutation.error as Error).message}</div>
       )}
+
+      {issuingFor && (
+        <IssueBrickModal recipient={issuingFor} onClose={() => setIssuingFor(null)} />
+      )}
+    </div>
+  );
+}
+
+function IssueBrickModal({ recipient, onClose }: { recipient: any; onClose: () => void }) {
+  const isPatron = (recipient.donor?.sevaCategory || "").toLowerCase().includes("patron");
+  const [type, setType] = useState<"free" | "paid">(isPatron ? "free" : "paid");
+  const [referenceNumber, setReferenceNumber] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const issueMutation = useMutation({
+    mutationFn: () =>
+      api.issueBrick(recipient.donor._id, {
+        type,
+        referenceNumber,
+        amount: type === "paid" && amount ? Number(amount) : undefined,
+      }),
+  });
+
+  if (issueMutation.isSuccess) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 text-center">
+          <CheckCircle size={40} className="mx-auto text-green-500 mb-3" />
+          <p className="font-medium mb-4">Brick issued to {recipient.donor?.name}.</p>
+          <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+        <h3 className="text-lg font-semibold mb-1">Issue Additional Brick</h3>
+        <p className="text-sm text-gray-600 mb-4">{recipient.donor?.name} &middot; {recipient.phone}</p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setType("free")}
+                className={`flex-1 px-3 py-2 rounded text-sm border ${
+                  type === "free" ? "bg-green-600 text-white border-green-600" : "hover:bg-gray-50"
+                }`}
+              >
+                Free (Patron)
+              </button>
+              <button
+                onClick={() => setType("paid")}
+                className={`flex-1 px-3 py-2 rounded text-sm border ${
+                  type === "paid" ? "bg-blue-600 text-white border-blue-600" : "hover:bg-gray-50"
+                }`}
+              >
+                Paid (Regular)
+              </button>
+            </div>
+            {isPatron && (
+              <p className="text-xs text-gray-400 mt-1">Defaulted to Free based on Seva Category ({recipient.donor?.sevaCategory}) — change if needed.</p>
+            )}
+          </div>
+
+          {type === "paid" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (optional)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g. 500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number *</label>
+            <input
+              type="text"
+              value={referenceNumber}
+              onChange={(e) => setReferenceNumber(e.target.value)}
+              placeholder="Receipt / payment reference"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        {issueMutation.isError && (
+          <div className="text-red-600 text-sm mt-4">{(issueMutation.error as Error).message}</div>
+        )}
+
+        <div className="flex gap-2 justify-end mt-6">
+          <button onClick={onClose} className="px-4 py-2 border rounded text-sm">Cancel</button>
+          <button
+            onClick={() => issueMutation.mutate()}
+            disabled={!referenceNumber.trim() || issueMutation.isPending}
+            className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+          >
+            {issueMutation.isPending ? "Issuing..." : "Issue Brick"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

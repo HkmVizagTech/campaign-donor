@@ -104,10 +104,12 @@ export async function addRecipients(
 }
 
 // Counter lookup: search recipients across ALL campaigns by phone, donor
-// name, or donor ID — used to quickly find a patron and mark their brick
-// handed over without needing to know which campaign they belong to.
-export async function searchRecipients(query: string) {
-  return CampaignRecipient.aggregate([
+// name, or donor ID, optionally narrowed by brick status — used to quickly
+// find a patron and mark their brick handed over without needing to know
+// which campaign they belong to. With no query, returns the most recently
+// updated recipients so the page has something useful to show by default.
+export async function searchRecipients(query?: string, brickStatus?: string) {
+  const pipeline: mongoose.PipelineStage[] = [
     {
       $lookup: {
         from: "donors",
@@ -117,15 +119,28 @@ export async function searchRecipients(query: string) {
       },
     },
     { $unwind: { path: "$donor", preserveNullAndEmptyArrays: true } },
-    {
-      $match: {
-        $or: [
-          { phone: { $regex: query, $options: "i" } },
-          { "donor.name": { $regex: query, $options: "i" } },
-          { "donor.donorId": { $regex: query, $options: "i" } },
-        ],
-      },
-    },
+  ];
+
+  const conditions: Record<string, unknown>[] = [];
+  if (query) {
+    conditions.push({
+      $or: [
+        { phone: { $regex: query, $options: "i" } },
+        { "donor.name": { $regex: query, $options: "i" } },
+        { "donor.donorId": { $regex: query, $options: "i" } },
+      ],
+    });
+  }
+  if (brickStatus) {
+    conditions.push({ brickStatus });
+  }
+  if (conditions.length === 1) {
+    pipeline.push({ $match: conditions[0] });
+  } else if (conditions.length > 1) {
+    pipeline.push({ $match: { $and: conditions } });
+  }
+
+  pipeline.push(
     {
       $lookup: {
         from: "campaigns",
@@ -136,8 +151,10 @@ export async function searchRecipients(query: string) {
     },
     { $unwind: { path: "$campaign", preserveNullAndEmptyArrays: true } },
     { $sort: { updatedAt: -1 } },
-    { $limit: 20 },
-  ]);
+    { $limit: 50 }
+  );
+
+  return CampaignRecipient.aggregate(pipeline);
 }
 
 export async function getCampaignRecipients(
