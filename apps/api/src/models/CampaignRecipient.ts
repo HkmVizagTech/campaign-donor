@@ -44,6 +44,10 @@ campaignRecipientSchema.index({ campaignId: 1, donorId: 1 }, { unique: true });
 campaignRecipientSchema.index({ campaignId: 1, phone: 1 }, { unique: true });
 campaignRecipientSchema.index({ phone: 1 });
 campaignRecipientSchema.index({ campaignId: 1, response: 1 });
+// Needed for $lookup joins keyed on donorId alone (e.g. the Donors list's
+// brick status join) — the compound index above doesn't help a query that
+// doesn't also filter by campaignId.
+campaignRecipientSchema.index({ donorId: 1 });
 
 export const CampaignRecipient = mongoose.model<ICampaignRecipient>(
   "CampaignRecipient",

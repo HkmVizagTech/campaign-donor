@@ -29,14 +29,20 @@ export async function listDonors({ page, limit, search, sort, brickStatus }: Don
   // brickStatus lives on CampaignRecipient, not Donor, so this needs a join —
   // a donor matches a brickStatus filter if ANY of their recipient records
   // has that status. Always joined (not just when filtering) so the list can
-  // also display each donor's brick status.
+  // also display each donor's brick status. The sub-pipeline lookup only
+  // pulls brickStatus (not the whole recipient doc) and still uses the
+  // index on donorId; count + page are combined into one $facet pass so the
+  // (relatively expensive) lookup only runs once per request.
   const pipeline: mongoose.PipelineStage[] = [
     { $match: donorMatch },
     {
       $lookup: {
         from: "campaignrecipients",
-        localField: "_id",
-        foreignField: "donorId",
+        let: { donorId: "$_id" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$donorId", "$$donorId"] } } },
+          { $project: { _id: 0, brickStatus: 1 } },
+        ],
         as: "recipients",
       },
     },
@@ -49,13 +55,17 @@ export async function listDonors({ page, limit, search, sort, brickStatus }: Don
   pipeline.push(
     { $addFields: { brickStatus: { $arrayElemAt: ["$recipients.brickStatus", 0] } } },
     { $project: { recipients: 0 } },
-    { $sort: sortObj }
+    {
+      $facet: {
+        data: [{ $sort: sortObj }, { $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: "count" }],
+      },
+    }
   );
 
-  const countResult = await Donor.aggregate([...pipeline, { $count: "total" }]);
-  const total = countResult[0]?.total || 0;
-
-  const data = await Donor.aggregate([...pipeline, { $skip: skip }, { $limit: limit }]);
+  const [result] = await Donor.aggregate(pipeline);
+  const data = result?.data || [];
+  const total = result?.totalCount?.[0]?.count || 0;
 
   return {
     data,
