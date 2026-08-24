@@ -72,3 +72,17 @@ export async function getBrickIssuances(req: Request, res: Response, next: NextF
     next(err);
   }
 }
+
+export async function exportDonors(req: Request, res: Response, next: NextFunction) {
+  try {
+    const search = req.query.search as string | undefined;
+    const brickStatus = req.query.brickStatus as string | undefined;
+    const { buffer, filename } = await donorService.exportDonors(search, brickStatus);
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}

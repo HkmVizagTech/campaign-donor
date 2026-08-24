@@ -109,6 +109,13 @@ export async function addRecipients(
 
   const insertedCount = Array.isArray(result) ? result.length : 0;
 
+  // Mirror the new recipients' default brick status onto Donor so the
+  // Donors list can filter/display it without a live join.
+  if (insertedCount > 0) {
+    const insertedDonorIds = (result as any[]).map((r) => r.donorId);
+    await Donor.updateMany({ _id: { $in: insertedDonorIds } }, { brickStatus: "pending" });
+  }
+
   await Campaign.findByIdAndUpdate(campaignId, {
     totalRecipients: await CampaignRecipient.countDocuments({ campaignId }),
   });
@@ -298,6 +305,11 @@ export async function updateBrickStatus(campaignId: string, recipientId: string,
 
   recipient.brickStatus = brickStatus as any;
   await recipient.save();
+
+  // Keep the denormalized copy on Donor in sync so the Donors list can
+  // filter/display brick status with a plain indexed query, no join.
+  await Donor.findByIdAndUpdate(recipient.donorId, { brickStatus });
+
   emitAppEvent({ campaignId });
   return recipient;
 }

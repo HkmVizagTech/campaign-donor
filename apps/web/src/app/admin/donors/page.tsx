@@ -1,10 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
 
 const BRICK_LABELS: Record<string, string> = {
   not_required: "N/A",
@@ -49,17 +50,35 @@ export default function DonorsPage() {
     setDebouncedSearch(search);
   };
 
+  const downloadMutation = useMutation({
+    mutationFn: () => api.downloadDonorsExport(debouncedSearch || undefined, brickFilter || undefined),
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Donors</h1>
-        <Link
-          href="/admin/donors/import"
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700"
-        >
-          Import Donors
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => downloadMutation.mutate()}
+            disabled={downloadMutation.isPending}
+            className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+          >
+            <Download size={16} />
+            {downloadMutation.isPending ? "Downloading..." : "Download"}
+          </button>
+          <Link
+            href="/admin/donors/import"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700"
+          >
+            Import Donors
+          </Link>
+        </div>
       </div>
+
+      {downloadMutation.isError && (
+        <div className="text-red-600 text-sm mb-4">{(downloadMutation.error as Error).message}</div>
+      )}
 
       <form onSubmit={handleSearch} className="mb-4 flex gap-2">
         <input

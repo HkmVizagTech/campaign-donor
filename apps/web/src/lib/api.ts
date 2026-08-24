@@ -59,6 +59,40 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return json;
 }
 
+// Fetches a file with the auth header attached (a plain <a href> or
+// window.open can't send Authorization) and triggers a browser download.
+async function downloadAuthed(url: string, fallbackFilename: string) {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = "Bearer " + token;
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    let message = "Download failed";
+    try {
+      const json = await res.json();
+      message = json.message || message;
+    } catch {
+      // response wasn't JSON (e.g. the file itself) — keep default message
+    }
+    throw new Error(message);
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match?.[1] || fallbackFilename;
+
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<ApiResponse<{ token: string; admin: unknown }>>("/auth/login", {
@@ -161,36 +195,15 @@ export const api = {
   downloadExport: async (campaignId: string, response?: string, format = "xlsx") => {
     let url = API_URL + "/reports/" + campaignId + "/export?format=" + format;
     if (response) url += "&response=" + response;
+    await downloadAuthed(url, `export.${format}`);
+  },
 
-    const token = getToken();
-    const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = "Bearer " + token;
-
-    const res = await fetch(url, { headers });
-    if (!res.ok) {
-      let message = "Export failed";
-      try {
-        const json = await res.json();
-        message = json.message || message;
-      } catch {
-        // response wasn't JSON (e.g. the file itself) — keep default message
-      }
-      throw new Error(message);
-    }
-
-    const disposition = res.headers.get("Content-Disposition") || "";
-    const match = disposition.match(/filename="([^"]+)"/);
-    const filename = match?.[1] || `export.${format}`;
-
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(blobUrl);
+  downloadDonorsExport: async (search?: string, brickStatus?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (brickStatus) params.set("brickStatus", brickStatus);
+    const qs = params.toString();
+    await downloadAuthed(API_URL + "/donors/export" + (qs ? "?" + qs : ""), "donors.xlsx");
   },
 
   resetAllData: (confirm: string) =>

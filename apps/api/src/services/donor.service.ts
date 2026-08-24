@@ -1,9 +1,17 @@
-import mongoose from "mongoose";
+import ExcelJS from "exceljs";
 import { Donor, IDonor } from "../models/Donor.js";
 import { BrickIssuance } from "../models/BrickIssuance.js";
 import { NotFoundError, BadRequestError } from "../utils/errors.js";
 import { normalizePhone } from "../utils/phone.js";
 import { emitAppEvent } from "../utils/events.js";
+
+const BRICK_LABELS: Record<string, string> = {
+  not_required: "N/A",
+  pending: "Pending",
+  confirmed: "Confirmed",
+  prepared: "Prepared",
+  handed_over: "Handed Over",
+};
 
 interface DonorListParams {
   page: number;
@@ -14,58 +22,29 @@ interface DonorListParams {
 }
 
 export async function listDonors({ page, limit, search, sort, brickStatus }: DonorListParams) {
-  const donorMatch: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = {};
   if (search) {
-    donorMatch.$or = [
+    filter.$or = [
       { name: { $regex: search, $options: "i" } },
       { phone: { $regex: search, $options: "i" } },
       { donorId: { $regex: search, $options: "i" } },
     ];
   }
+  // brickStatus is denormalized onto Donor (kept in sync by
+  // updateBrickStatus/addRecipients in campaign.service.ts) specifically so
+  // this stays a plain indexed query — no live join against
+  // campaignrecipients, which was the source of an earlier slowdown.
+  if (brickStatus) {
+    filter.brickStatus = brickStatus;
+  }
 
   const sortObj: Record<string, 1 | -1> = sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
   const skip = (page - 1) * limit;
 
-  // brickStatus lives on CampaignRecipient, not Donor, so this needs a join —
-  // a donor matches a brickStatus filter if ANY of their recipient records
-  // has that status. Always joined (not just when filtering) so the list can
-  // also display each donor's brick status. The sub-pipeline lookup only
-  // pulls brickStatus (not the whole recipient doc) and still uses the
-  // index on donorId; count + page are combined into one $facet pass so the
-  // (relatively expensive) lookup only runs once per request.
-  const pipeline: mongoose.PipelineStage[] = [
-    { $match: donorMatch },
-    {
-      $lookup: {
-        from: "campaignrecipients",
-        let: { donorId: "$_id" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$donorId", "$$donorId"] } } },
-          { $project: { _id: 0, brickStatus: 1 } },
-        ],
-        as: "recipients",
-      },
-    },
-  ];
-
-  if (brickStatus) {
-    pipeline.push({ $match: { "recipients.brickStatus": brickStatus } });
-  }
-
-  pipeline.push(
-    { $addFields: { brickStatus: { $arrayElemAt: ["$recipients.brickStatus", 0] } } },
-    { $project: { recipients: 0 } },
-    {
-      $facet: {
-        data: [{ $sort: sortObj }, { $skip: skip }, { $limit: limit }],
-        totalCount: [{ $count: "count" }],
-      },
-    }
-  );
-
-  const [result] = await Donor.aggregate(pipeline);
-  const data = result?.data || [];
-  const total = result?.totalCount?.[0]?.count || 0;
+  const [data, total] = await Promise.all([
+    Donor.find(filter).sort(sortObj).skip(skip).limit(limit),
+    Donor.countDocuments(filter),
+  ]);
 
   return {
     data,
@@ -130,4 +109,58 @@ export async function issueBrick(
 
 export async function getBrickIssuances(donorId: string) {
   return BrickIssuance.find({ donorId }).sort({ createdAt: -1 });
+}
+
+export async function exportDonors(search?: string, brickStatus?: string) {
+  const filter: Record<string, unknown> = {};
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { phone: { $regex: search, $options: "i" } },
+      { donorId: { $regex: search, $options: "i" } },
+    ];
+  }
+  if (brickStatus) {
+    filter.brickStatus = brickStatus;
+  }
+
+  const donors = await Donor.find(filter).sort({ createdAt: -1 });
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Donors");
+
+  sheet.columns = [
+    { header: "Donor ID", key: "donorId", width: 15 },
+    { header: "Name", key: "name", width: 25 },
+    { header: "Phone", key: "phone", width: 18 },
+    { header: "Seva Category", key: "sevaCategory", width: 18 },
+    { header: "Brick No", key: "brickName", width: 15 },
+    { header: "Brick Status", key: "brickStatusLabel", width: 15 },
+    { header: "Handed Over", key: "handedOver", width: 12 },
+    { header: "Donation Amount", key: "donationAmount", width: 15 },
+    { header: "Donation Reference", key: "donationReference", width: 20 },
+    { header: "Source", key: "source", width: 15 },
+  ];
+  sheet.getRow(1).font = { bold: true };
+
+  for (const d of donors) {
+    sheet.addRow({
+      donorId: d.donorId || "",
+      name: d.name,
+      phone: d.phone,
+      sevaCategory: d.sevaCategory || "",
+      brickName: d.brickName || "",
+      brickStatusLabel: d.brickStatus ? BRICK_LABELS[d.brickStatus] || d.brickStatus : "",
+      handedOver: d.brickStatus === "handed_over" ? "Yes" : "No",
+      donationAmount: d.donationAmount || "",
+      donationReference: d.donationReference || "",
+      source: d.source || "",
+    });
+  }
+
+  const buffer = Buffer.from((await workbook.xlsx.writeBuffer()) as ArrayBuffer);
+  const date = new Date().toISOString().split("T")[0];
+  const filename = `donors-${date}.xlsx`;
+
+  return { buffer, filename };
 }
