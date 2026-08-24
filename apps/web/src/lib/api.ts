@@ -162,7 +162,7 @@ export const api = {
   updateCampaign: (id: string, data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns/" + id, { method: "PUT", body: JSON.stringify(data) }),
   deleteCampaign: (id: string) =>
-    request<ApiResponse<{ name: string; recipientsDeleted: number; responseHistoryDeleted: number }>>(
+    request<ApiResponse<{ name: string; recipientsDeleted: number; responseHistoryDeleted: number; donorsDeleted: number }>>(
       "/campaigns/" + id,
       { method: "DELETE" }
     ),

@@ -21,9 +21,14 @@ export default function CampaignsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteCampaign(id),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["donors"] });
       setDeleting(null);
+      const { recipientsDeleted, donorsDeleted } = res.data;
+      if (donorsDeleted > 0) {
+        alert(`Campaign deleted. Also removed ${donorsDeleted} donor(s) who only belonged to this campaign (${recipientsDeleted} recipient records total).`);
+      }
     },
   });
 
@@ -98,7 +103,8 @@ export default function CampaignsPage() {
             <h3 className="text-lg font-semibold text-red-700 mb-2">Delete Campaign</h3>
             <p className="text-sm text-gray-600 mb-4">
               This permanently deletes <strong>{deleting.name}</strong> and all {deleting.totalRecipients} recipient
-              records and response history for it. Donors themselves are not affected. This cannot be undone.
+              records and response history for it. Donors who <em>only</em> belong to this campaign will also be
+              deleted; donors who are part of another campaign too are kept. This cannot be undone.
               Type the campaign name to confirm.
             </p>
             <input

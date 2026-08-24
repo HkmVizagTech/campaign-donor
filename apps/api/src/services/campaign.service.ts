@@ -3,6 +3,7 @@ import { Campaign, ICampaign } from "../models/Campaign.js";
 import { CampaignRecipient, ICampaignRecipient } from "../models/CampaignRecipient.js";
 import { ResponseHistory } from "../models/ResponseHistory.js";
 import { Donor } from "../models/Donor.js";
+import { BrickIssuance } from "../models/BrickIssuance.js";
 import { NotFoundError, BadRequestError } from "../utils/errors.js";
 import { v4 as uuidv4 } from "uuid";
 import { ResponseStatus, CampaignStatus } from "@garbha-gudi/shared";
@@ -50,15 +51,35 @@ export async function deleteCampaign(id: string) {
     throw new BadRequestError("Can't delete a campaign while it's sending — wait for it to finish or fail first");
   }
 
+  // Capture who belonged to this campaign before removing the recipient
+  // records — needed to decide which donors become orphaned by the delete.
+  const donorIds = await CampaignRecipient.distinct("donorId", { campaignId: id });
+
   const [{ deletedCount: recipientsDeleted }, { deletedCount: responseHistoryDeleted }] = await Promise.all([
     CampaignRecipient.deleteMany({ campaignId: id }),
     ResponseHistory.deleteMany({ campaignId: id }),
   ]);
   await Campaign.deleteOne({ _id: id });
 
+  // Delete donors only if they have no OTHER campaign recipient record —
+  // a donor still part of a different campaign is kept, or that campaign's
+  // data would be left pointing at a deleted donor.
+  let donorsDeleted = 0;
+  if (donorIds.length > 0) {
+    const stillReferenced = await CampaignRecipient.distinct("donorId", { donorId: { $in: donorIds } });
+    const stillReferencedSet = new Set(stillReferenced.map((d) => d.toString()));
+    const orphanedDonorIds = donorIds.filter((d) => !stillReferencedSet.has(d.toString()));
+
+    if (orphanedDonorIds.length > 0) {
+      await BrickIssuance.deleteMany({ donorId: { $in: orphanedDonorIds } });
+      const deleteResult = await Donor.deleteMany({ _id: { $in: orphanedDonorIds } });
+      donorsDeleted = deleteResult.deletedCount;
+    }
+  }
+
   emitAppEvent({});
 
-  return { name: campaign.name, recipientsDeleted, responseHistoryDeleted };
+  return { name: campaign.name, recipientsDeleted, responseHistoryDeleted, donorsDeleted };
 }
 
 export async function addRecipients(
