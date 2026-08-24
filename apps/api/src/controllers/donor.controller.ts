@@ -18,7 +18,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const limit = Math.min(parseInt(String(req.query.limit)) || 20, 100);
     const search = req.query.search as string | undefined;
     const sort = req.query.sort as string | undefined;
-    const result = await donorService.listDonors({ page, limit, search, sort });
+    const brickStatus = req.query.brickStatus as string | undefined;
+    const result = await donorService.listDonors({ page, limit, search, sort, brickStatus });
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);

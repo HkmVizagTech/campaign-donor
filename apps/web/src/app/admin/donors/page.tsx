@@ -6,15 +6,38 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const BRICK_LABELS: Record<string, string> = {
+  not_required: "N/A",
+  pending: "Pending",
+  confirmed: "Confirmed",
+  prepared: "Prepared",
+  handed_over: "Handed Over",
+};
+
+const BRICK_COLORS: Record<string, string> = {
+  not_required: "bg-gray-100 text-gray-600",
+  pending: "bg-yellow-100 text-yellow-700",
+  confirmed: "bg-blue-100 text-blue-700",
+  prepared: "bg-purple-100 text-purple-700",
+  handed_over: "bg-green-100 text-green-700",
+};
+
+type BrickFilter = "" | "pending" | "confirmed" | "prepared" | "handed_over";
+
 export default function DonorsPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [brickFilter, setBrickFilter] = useState<BrickFilter>("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["donors", page, debouncedSearch],
-    queryFn: () => api.donors({ page: String(page), limit: "20", search: debouncedSearch }),
+    queryKey: ["donors", page, debouncedSearch, brickFilter],
+    queryFn: () =>
+      api.donors({
+        page: String(page), limit: "20", search: debouncedSearch,
+        ...(brickFilter ? { brickStatus: brickFilter } : {}),
+      }),
   });
 
   const donors = (data?.data || []) as any[];
@@ -51,6 +74,21 @@ export default function DonorsPage() {
         </button>
       </form>
 
+      <div className="flex gap-1 mb-4">
+        <span className="text-xs text-gray-500 self-center mr-1">Brick:</span>
+        {(["", "pending", "confirmed", "prepared", "handed_over"] as BrickFilter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => { setBrickFilter(f); setPage(1); }}
+            className={`px-3 py-1 rounded text-sm ${
+              brickFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {f === "" ? "All" : BRICK_LABELS[f]}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="text-gray-500">Loading...</div>
       ) : (
@@ -64,6 +102,7 @@ export default function DonorsPage() {
                   <th className="text-left px-4 py-3 font-medium">Phone</th>
                   <th className="text-left px-4 py-3 font-medium">Seva Category</th>
                   <th className="text-left px-4 py-3 font-medium">Brick No</th>
+                  <th className="text-left px-4 py-3 font-medium">Brick Status</th>
                   <th className="text-left px-4 py-3 font-medium">Amount</th>
                   <th className="text-left px-4 py-3 font-medium">Source</th>
                 </tr>
@@ -80,13 +119,20 @@ export default function DonorsPage() {
                     <td className="px-4 py-3">{d.phone}</td>
                     <td className="px-4 py-3">{d.sevaCategory || "-"}</td>
                     <td className="px-4 py-3">{d.brickName || "-"}</td>
+                    <td className="px-4 py-3">
+                      {d.brickStatus ? (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${BRICK_COLORS[d.brickStatus] || ""}`}>
+                          {BRICK_LABELS[d.brickStatus] || d.brickStatus}
+                        </span>
+                      ) : "-"}
+                    </td>
                     <td className="px-4 py-3">{d.donationAmount ? "Rs. " + d.donationAmount.toLocaleString() : "-"}</td>
                     <td className="px-4 py-3 text-gray-500">{d.source || "-"}</td>
                   </tr>
                 ))}
                 {donors.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">No donors found</td>
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">No donors found</td>
                   </tr>
                 )}
               </tbody>

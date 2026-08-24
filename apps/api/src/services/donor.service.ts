@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Donor, IDonor } from "../models/Donor.js";
 import { BrickIssuance } from "../models/BrickIssuance.js";
 import { NotFoundError, BadRequestError } from "../utils/errors.js";
@@ -9,12 +10,13 @@ interface DonorListParams {
   limit: number;
   search?: string;
   sort?: string;
+  brickStatus?: string;
 }
 
-export async function listDonors({ page, limit, search, sort }: DonorListParams) {
-  const filter: Record<string, unknown> = {};
+export async function listDonors({ page, limit, search, sort, brickStatus }: DonorListParams) {
+  const donorMatch: Record<string, unknown> = {};
   if (search) {
-    filter.$or = [
+    donorMatch.$or = [
       { name: { $regex: search, $options: "i" } },
       { phone: { $regex: search, $options: "i" } },
       { donorId: { $regex: search, $options: "i" } },
@@ -24,10 +26,36 @@ export async function listDonors({ page, limit, search, sort }: DonorListParams)
   const sortObj: Record<string, 1 | -1> = sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
   const skip = (page - 1) * limit;
 
-  const [data, total] = await Promise.all([
-    Donor.find(filter).sort(sortObj).skip(skip).limit(limit),
-    Donor.countDocuments(filter),
-  ]);
+  // brickStatus lives on CampaignRecipient, not Donor, so this needs a join —
+  // a donor matches a brickStatus filter if ANY of their recipient records
+  // has that status. Always joined (not just when filtering) so the list can
+  // also display each donor's brick status.
+  const pipeline: mongoose.PipelineStage[] = [
+    { $match: donorMatch },
+    {
+      $lookup: {
+        from: "campaignrecipients",
+        localField: "_id",
+        foreignField: "donorId",
+        as: "recipients",
+      },
+    },
+  ];
+
+  if (brickStatus) {
+    pipeline.push({ $match: { "recipients.brickStatus": brickStatus } });
+  }
+
+  pipeline.push(
+    { $addFields: { brickStatus: { $arrayElemAt: ["$recipients.brickStatus", 0] } } },
+    { $project: { recipients: 0 } },
+    { $sort: sortObj }
+  );
+
+  const countResult = await Donor.aggregate([...pipeline, { $count: "total" }]);
+  const total = countResult[0]?.total || 0;
+
+  const data = await Donor.aggregate([...pipeline, { $skip: skip }, { $limit: limit }]);
 
   return {
     data,
