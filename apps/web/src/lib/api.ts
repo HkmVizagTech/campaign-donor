@@ -104,13 +104,19 @@ export const api = {
       needsHeaderMedia: boolean; variableCount: number;
     }>>("/campaigns/template-info" + qs);
   },
-  searchRecipients: (q?: string, brickStatus?: string) => {
+  searchRecipients: (q?: string, brickStatus?: string, checkedIn?: boolean) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (brickStatus) params.set("brickStatus", brickStatus);
+    if (typeof checkedIn === "boolean") params.set("checkedIn", String(checkedIn));
     const qs = params.toString();
     return request<ApiResponse<unknown[]>>("/campaigns/recipients/search" + (qs ? "?" + qs : ""));
   },
+  checkInRecipient: (campaignId: string, recipientId: string, checkedIn = true) =>
+    request<ApiResponse<unknown>>("/campaigns/" + campaignId + "/recipients/" + recipientId + "/checkin", {
+      method: "PUT",
+      body: JSON.stringify({ checkedIn }),
+    }),
   createCampaign: (data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),

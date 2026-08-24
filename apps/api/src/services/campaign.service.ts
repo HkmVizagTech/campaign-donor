@@ -108,7 +108,7 @@ export async function addRecipients(
 // find a patron and mark their brick handed over without needing to know
 // which campaign they belong to. With no query, returns the most recently
 // updated recipients so the page has something useful to show by default.
-export async function searchRecipients(query?: string, brickStatus?: string) {
+export async function searchRecipients(query?: string, brickStatus?: string, checkedIn?: boolean) {
   const pipeline: mongoose.PipelineStage[] = [
     {
       $lookup: {
@@ -133,6 +133,9 @@ export async function searchRecipients(query?: string, brickStatus?: string) {
   }
   if (brickStatus) {
     conditions.push({ brickStatus });
+  }
+  if (typeof checkedIn === "boolean") {
+    conditions.push({ checkedIn });
   }
   if (conditions.length === 1) {
     pipeline.push({ $match: conditions[0] });
@@ -238,6 +241,19 @@ export async function updateBrickStatus(campaignId: string, recipientId: string,
   if (!recipient) throw new NotFoundError("Recipient not found");
 
   recipient.brickStatus = brickStatus as any;
+  await recipient.save();
+  emitAppEvent({ campaignId });
+  return recipient;
+}
+
+// Event-day entry check-in — separate from brick handover, since a patron
+// can be checked in without having collected their brick yet (or vice versa).
+export async function setCheckedIn(campaignId: string, recipientId: string, checkedIn: boolean) {
+  const recipient = await CampaignRecipient.findOne({ _id: recipientId, campaignId });
+  if (!recipient) throw new NotFoundError("Recipient not found");
+
+  recipient.checkedIn = checkedIn;
+  recipient.checkedInAt = checkedIn ? new Date() : undefined;
   await recipient.save();
   emitAppEvent({ campaignId });
   return recipient;

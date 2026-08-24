@@ -23,7 +23,9 @@ export async function searchRecipients(req: Request, res: Response, next: NextFu
   try {
     const q = String(req.query.q || "").trim();
     const brickStatus = req.query.brickStatus ? String(req.query.brickStatus) : undefined;
-    const results = await campaignService.searchRecipients(q || undefined, brickStatus);
+    const checkedIn =
+      req.query.checkedIn === "true" ? true : req.query.checkedIn === "false" ? false : undefined;
+    const results = await campaignService.searchRecipients(q || undefined, brickStatus, checkedIn);
     res.json({ success: true, data: results });
   } catch (err) {
     next(err);
@@ -162,6 +164,26 @@ export async function updateBrickStatus(req: Request, res: Response, next: NextF
       entity: "campaign_recipient",
       entityId: recipient._id,
       metadata: { brickStatus: req.body.brickStatus },
+    });
+
+    res.json({ success: true, data: recipient });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function checkIn(req: Request, res: Response, next: NextFunction) {
+  try {
+    const admin = (req as AuthRequest).admin!;
+    const checkedIn = req.body.checkedIn !== false; // default true — this endpoint is primarily "give entry"
+    const recipient = await campaignService.setCheckedIn(getId(req), String(req.params.recipientId), checkedIn);
+
+    await AuditLog.create({
+      adminId: admin._id,
+      action: checkedIn ? "entry_given" : "entry_undone",
+      entity: "campaign_recipient",
+      entityId: recipient._id,
+      metadata: { checkedIn },
     });
 
     res.json({ success: true, data: recipient });

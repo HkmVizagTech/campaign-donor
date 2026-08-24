@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Search, CheckCircle, PlusCircle } from "lucide-react";
+import { Search, CheckCircle, PlusCircle, LogIn } from "lucide-react";
 
 const BRICK_LABELS: Record<string, string> = {
   not_required: "N/A",
@@ -22,17 +22,24 @@ const BRICK_COLORS: Record<string, string> = {
 };
 
 type StatusFilter = "" | "pending" | "confirmed" | "prepared" | "handed_over";
+type EntryFilter = "" | "true" | "false";
 
 export default function BrickCounterPage() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
+  const [entryFilter, setEntryFilter] = useState<EntryFilter>("");
   const [issuingFor, setIssuingFor] = useState<any>(null);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["brickSearch", searchTerm, statusFilter],
-    queryFn: () => api.searchRecipients(searchTerm || undefined, statusFilter || undefined),
+    queryKey: ["brickSearch", searchTerm, statusFilter, entryFilter],
+    queryFn: () =>
+      api.searchRecipients(
+        searchTerm || undefined,
+        statusFilter || undefined,
+        entryFilter === "" ? undefined : entryFilter === "true"
+      ),
   });
 
   const results = (data?.data || []) as any[];
@@ -40,6 +47,12 @@ export default function BrickCounterPage() {
   const updateBrickMutation = useMutation({
     mutationFn: ({ campaignId, recipientId, brickStatus }: { campaignId: string; recipientId: string; brickStatus: string }) =>
       api.updateBrickStatus(campaignId, recipientId, brickStatus),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brickSearch"] }),
+  });
+
+  const checkInMutation = useMutation({
+    mutationFn: ({ campaignId, recipientId, checkedIn }: { campaignId: string; recipientId: string; checkedIn: boolean }) =>
+      api.checkInRecipient(campaignId, recipientId, checkedIn),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brickSearch"] }),
   });
 
@@ -52,8 +65,8 @@ export default function BrickCounterPage() {
     <div>
       <h1 className="text-2xl font-bold mb-2">Brick Counter</h1>
       <p className="text-gray-600 mb-6">
-        Search by phone number, donor name, or donor ID to find a patron and mark their brick handed over.
-        Showing recently updated records by default.
+        Search by phone number, donor name, or donor ID to find a patron — give them entry and mark their
+        brick handed over. Showing recently updated records by default.
       </p>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-4 max-w-xl">
@@ -75,18 +88,35 @@ export default function BrickCounterPage() {
         </button>
       </form>
 
-      <div className="flex gap-1 mb-6">
-        {(["", "pending", "confirmed", "prepared", "handed_over"] as StatusFilter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setStatusFilter(f)}
-            className={`px-3 py-1 rounded text-sm ${
-              statusFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {f === "" ? "All" : BRICK_LABELS[f]}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex gap-1">
+          <span className="text-xs text-gray-500 self-center mr-1">Entry:</span>
+          {(["", "false", "true"] as EntryFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setEntryFilter(f)}
+              className={`px-3 py-1 rounded text-sm ${
+                entryFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {f === "" ? "All" : f === "true" ? "Checked In" : "Not Checked In"}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          <span className="text-xs text-gray-500 self-center mr-1">Brick:</span>
+          {(["", "pending", "confirmed", "prepared", "handed_over"] as StatusFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className={`px-3 py-1 rounded text-sm ${
+                statusFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {f === "" ? "All" : BRICK_LABELS[f]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {isLoading && <div className="text-gray-500">Loading...</div>}
@@ -95,18 +125,54 @@ export default function BrickCounterPage() {
 
       <div className="space-y-3 max-w-2xl">
         {results.map((r) => (
-          <div key={r._id} className="bg-white rounded-lg border p-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="font-semibold text-lg">{r.donor?.name || "-"}</div>
-              <div className="text-sm text-gray-500">
-                {r.phone} &middot; {r.donor?.donorId || "-"}
-                {r.donor?.brickName && <> &middot; Brick: {r.donor.brickName}</>}
-                {r.donor?.sevaCategory && <> &middot; {r.donor.sevaCategory}</>}
+          <div key={r._id} className="bg-white rounded-lg border p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="font-semibold text-lg">{r.donor?.name || "-"}</div>
+                <div className="text-sm text-gray-500">
+                  {r.phone} &middot; {r.donor?.donorId || "-"}
+                  {r.donor?.brickName && <> &middot; Brick: {r.donor.brickName}</>}
+                  {r.donor?.sevaCategory && <> &middot; {r.donor.sevaCategory}</>}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">Campaign: {r.campaign?.name || "-"}</div>
               </div>
-              <div className="text-xs text-gray-400 mt-1">Campaign: {r.campaign?.name || "-"}</div>
+
+              <div className="shrink-0">
+                {r.checkedIn ? (
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-green-700 text-sm font-medium px-3 py-2 bg-green-50 rounded">
+                      <CheckCircle size={16} /> Checked In
+                      {r.checkedInAt && (
+                        <span className="text-xs text-gray-400">
+                          ({new Date(r.checkedInAt).toLocaleTimeString()})
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      onClick={() =>
+                        checkInMutation.mutate({ campaignId: r.campaignId, recipientId: r._id, checkedIn: false })
+                      }
+                      disabled={checkInMutation.isPending}
+                      className="text-xs text-gray-400 hover:text-red-600 underline"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() =>
+                      checkInMutation.mutate({ campaignId: r.campaignId, recipientId: r._id, checkedIn: true })
+                    }
+                    disabled={checkInMutation.isPending}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <LogIn size={16} /> Give Entry
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t">
               <span className={`px-2 py-1 rounded text-xs font-medium ${BRICK_COLORS[r.brickStatus] || ""}`}>
                 {BRICK_LABELS[r.brickStatus] || r.brickStatus}
               </span>
@@ -155,6 +221,10 @@ export default function BrickCounterPage() {
 
       {updateBrickMutation.isError && (
         <div className="text-red-600 text-sm mt-4">{(updateBrickMutation.error as Error).message}</div>
+      )}
+
+      {checkInMutation.isError && (
+        <div className="text-red-600 text-sm mt-4">{(checkInMutation.error as Error).message}</div>
       )}
 
       {issuingFor && (

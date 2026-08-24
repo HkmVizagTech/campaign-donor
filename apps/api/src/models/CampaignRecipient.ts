@@ -14,6 +14,8 @@ export interface ICampaignRecipient extends Document {
   failureReason?: string;
   externalMessageId?: string;
   brickStatus: BrickStatus;
+  checkedIn: boolean;
+  checkedInAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,8 @@ const campaignRecipientSchema = new Schema<ICampaignRecipient>(
     failureReason: { type: String },
     externalMessageId: { type: String },
     brickStatus: { type: String, enum: Object.values(BrickStatus), default: BrickStatus.Pending },
+    checkedIn: { type: Boolean, default: false },
+    checkedInAt: { type: Date },
   },
   { timestamps: true }
 );

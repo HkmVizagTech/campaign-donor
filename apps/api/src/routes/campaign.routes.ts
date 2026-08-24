@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   create, list, getById, update,
   addRecipients, getRecipients,
-  updateResponse, updateBrickStatus,
+  updateResponse, updateBrickStatus, checkIn,
   getStats, dashboard, send, getTemplateInfo, searchRecipients,
 } from "../controllers/campaign.controller.js";
 import { authenticate } from "../middleware/auth.js";
@@ -33,6 +33,7 @@ router.get("/:id/recipients", getRecipients);
 // Response + Brick
 router.put("/:id/recipients/:recipientId/response", updateResponse);
 router.put("/:id/recipients/:recipientId/brick", updateBrickStatus);
+router.put("/:id/recipients/:recipientId/checkin", checkIn);
 
 // Send
 router.post("/:id/send", send);
