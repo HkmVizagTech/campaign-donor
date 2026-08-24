@@ -32,7 +32,7 @@ export default function BrickCounterPage() {
   const [entryFilter, setEntryFilter] = useState<EntryFilter>("");
   const [issuingFor, setIssuingFor] = useState<any>(null);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["brickSearch", searchTerm, statusFilter, entryFilter],
     queryFn: () =>
       api.searchRecipients(
@@ -102,8 +102,7 @@ export default function BrickCounterPage() {
         />
         <button
           type="submit"
-          disabled={isFetching}
-          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
         >
           <Search size={18} />
           Search
