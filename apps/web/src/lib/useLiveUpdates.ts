@@ -35,6 +35,7 @@ export function useLiveUpdates(enabled: boolean) {
       queryClient.invalidateQueries({ queryKey: ["campaign"] });
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["brickSearch"] });
+      queryClient.invalidateQueries({ queryKey: ["recipientStats"] });
       if (event.campaignId) {
         queryClient.invalidateQueries({ queryKey: ["recipients", event.campaignId] });
       }

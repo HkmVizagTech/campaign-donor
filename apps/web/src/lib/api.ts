@@ -117,6 +117,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ checkedIn }),
     }),
+  recipientStats: () =>
+    request<ApiResponse<{
+      total: number; checkedIn: number; notCheckedIn: number;
+      brick: Record<string, number>;
+    }>>("/campaigns/recipients/stats"),
   createCampaign: (data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),

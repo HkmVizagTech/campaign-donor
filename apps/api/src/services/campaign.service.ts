@@ -160,6 +160,43 @@ export async function searchRecipients(query?: string, brickStatus?: string, che
   return CampaignRecipient.aggregate(pipeline);
 }
 
+// Counter-wide totals (across all campaigns, ignoring the 50-result search
+// cap) for the filter tabs on the Brick Counter page.
+export async function getRecipientStats() {
+  const [s] = await CampaignRecipient.aggregate([
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        checkedIn: { $sum: { $cond: ["$checkedIn", 1, 0] } },
+        brickNotRequired: { $sum: { $cond: [{ $eq: ["$brickStatus", "not_required"] }, 1, 0] } },
+        brickPending: { $sum: { $cond: [{ $eq: ["$brickStatus", "pending"] }, 1, 0] } },
+        brickConfirmed: { $sum: { $cond: [{ $eq: ["$brickStatus", "confirmed"] }, 1, 0] } },
+        brickPrepared: { $sum: { $cond: [{ $eq: ["$brickStatus", "prepared"] }, 1, 0] } },
+        brickHandedOver: { $sum: { $cond: [{ $eq: ["$brickStatus", "handed_over"] }, 1, 0] } },
+      },
+    },
+  ]);
+
+  const stats = s || {
+    total: 0, checkedIn: 0,
+    brickNotRequired: 0, brickPending: 0, brickConfirmed: 0, brickPrepared: 0, brickHandedOver: 0,
+  };
+
+  return {
+    total: stats.total,
+    checkedIn: stats.checkedIn,
+    notCheckedIn: stats.total - stats.checkedIn,
+    brick: {
+      not_required: stats.brickNotRequired,
+      pending: stats.brickPending,
+      confirmed: stats.brickConfirmed,
+      prepared: stats.brickPrepared,
+      handed_over: stats.brickHandedOver,
+    },
+  };
+}
+
 export async function getCampaignRecipients(
   campaignId: string,
   params: { page: number; limit: number; response?: string; messageStatus?: string; search?: string }

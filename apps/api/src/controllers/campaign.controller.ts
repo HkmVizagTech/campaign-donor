@@ -32,6 +32,15 @@ export async function searchRecipients(req: Request, res: Response, next: NextFu
   }
 }
 
+export async function getRecipientStats(req: Request, res: Response, next: NextFunction) {
+  try {
+    const stats = await campaignService.getRecipientStats();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const admin = (req as AuthRequest).admin!;

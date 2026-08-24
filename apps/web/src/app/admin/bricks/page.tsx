@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Search, CheckCircle, PlusCircle, LogIn } from "lucide-react";
+import { Search, CheckCircle, PlusCircle, LogIn, Users, Package } from "lucide-react";
 
 const BRICK_LABELS: Record<string, string> = {
   not_required: "N/A",
@@ -44,16 +44,29 @@ export default function BrickCounterPage() {
 
   const results = (data?.data || []) as any[];
 
+  const { data: statsData } = useQuery({
+    queryKey: ["recipientStats"],
+    queryFn: () => api.recipientStats(),
+    // Safety-net poll in case a live update from another counter station is missed
+    refetchInterval: 30000,
+  });
+  const stats = statsData?.data;
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["brickSearch"] });
+    queryClient.invalidateQueries({ queryKey: ["recipientStats"] });
+  };
+
   const updateBrickMutation = useMutation({
     mutationFn: ({ campaignId, recipientId, brickStatus }: { campaignId: string; recipientId: string; brickStatus: string }) =>
       api.updateBrickStatus(campaignId, recipientId, brickStatus),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brickSearch"] }),
+    onSuccess: invalidate,
   });
 
   const checkInMutation = useMutation({
     mutationFn: ({ campaignId, recipientId, checkedIn }: { campaignId: string; recipientId: string; checkedIn: boolean }) =>
       api.checkInRecipient(campaignId, recipientId, checkedIn),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["brickSearch"] }),
+    onSuccess: invalidate,
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -64,10 +77,19 @@ export default function BrickCounterPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-2">Brick Counter</h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-gray-600 mb-4">
         Search by phone number, donor name, or donor ID to find a patron — give them entry and mark their
         brick handed over. Showing recently updated records by default.
       </p>
+
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 max-w-3xl">
+          <StatCard icon={<Users size={16} />} label="Total Recipients" value={stats.total} />
+          <StatCard icon={<LogIn size={16} className="text-blue-500" />} label="Checked In" value={stats.checkedIn} />
+          <StatCard icon={<Users size={16} className="text-gray-400" />} label="Not Checked In" value={stats.notCheckedIn} />
+          <StatCard icon={<Package size={16} className="text-green-500" />} label="Bricks Handed Over" value={stats.brick.handed_over || 0} />
+        </div>
+      )}
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-4 max-w-xl">
         <input
@@ -91,31 +113,39 @@ export default function BrickCounterPage() {
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex gap-1">
           <span className="text-xs text-gray-500 self-center mr-1">Entry:</span>
-          {(["", "false", "true"] as EntryFilter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setEntryFilter(f)}
-              className={`px-3 py-1 rounded text-sm ${
-                entryFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {f === "" ? "All" : f === "true" ? "Checked In" : "Not Checked In"}
-            </button>
-          ))}
+          {(["", "false", "true"] as EntryFilter[]).map((f) => {
+            const count = !stats ? undefined : f === "" ? stats.total : f === "true" ? stats.checkedIn : stats.notCheckedIn;
+            return (
+              <button
+                key={f}
+                onClick={() => setEntryFilter(f)}
+                className={`px-3 py-1 rounded text-sm ${
+                  entryFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {f === "" ? "All" : f === "true" ? "Checked In" : "Not Checked In"}
+                {count !== undefined && ` (${count})`}
+              </button>
+            );
+          })}
         </div>
         <div className="flex gap-1">
           <span className="text-xs text-gray-500 self-center mr-1">Brick:</span>
-          {(["", "pending", "confirmed", "prepared", "handed_over"] as StatusFilter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1 rounded text-sm ${
-                statusFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {f === "" ? "All" : BRICK_LABELS[f]}
-            </button>
-          ))}
+          {(["", "pending", "confirmed", "prepared", "handed_over"] as StatusFilter[]).map((f) => {
+            const count = !stats ? undefined : f === "" ? stats.total : stats.brick[f];
+            return (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`px-3 py-1 rounded text-sm ${
+                  statusFilter === f ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {f === "" ? "All" : BRICK_LABELS[f]}
+                {count !== undefined && ` (${count})`}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -335,6 +365,18 @@ function IssueBrickModal({ recipient, onClose }: { recipient: any; onClose: () =
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return (
+    <div className="bg-white rounded-lg border p-4">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-2xl font-bold">{value.toLocaleString()}</span>
+      </div>
+      <div className="text-sm text-gray-500 mt-1">{label}</div>
     </div>
   );
 }
