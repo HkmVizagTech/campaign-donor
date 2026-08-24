@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { CheckCircle, XCircle, Clock, Users, Send } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Users, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 export default function CampaignDetailPage() {
@@ -17,6 +17,8 @@ export default function CampaignDetailPage() {
   const [headerImageUrl, setHeaderImageUrl] = useState("");
   const [values, setValues] = useState<string[]>([]);
   const [nameIndex, setNameIndex] = useState(-1);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["campaign", id],
@@ -78,6 +80,14 @@ export default function CampaignDetailPage() {
     templateInfoMutation.mutate(initialTemplateId);
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: () => api.deleteCampaign(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      router.push("/admin/campaigns");
+    },
+  });
+
   const statusColors: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700",
     ready: "bg-blue-100 text-blue-700",
@@ -133,6 +143,15 @@ export default function CampaignDetailPage() {
               }`}
             >
               {campaign.totalFailed > 0 ? `Retry Failed (${campaign.totalFailed})` : "Send Messages"}
+            </button>
+          )}
+          {campaign.status !== "sending" && (
+            <button
+              onClick={() => { setDeleteConfirmText(""); setDeleteModalOpen(true); }}
+              title="Delete campaign"
+              className="px-3 py-2 border border-red-200 text-red-600 rounded text-sm hover:bg-red-50"
+            >
+              <Trash2 size={16} />
             </button>
           )}
         </div>
@@ -260,6 +279,40 @@ export default function CampaignDetailPage() {
                 className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
               >
                 {sendMutation.isPending ? "Starting..." : `Send to ${eligibleCount}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Campaign Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-red-700 mb-2">Delete Campaign</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This permanently deletes <strong>{campaign.name}</strong> and all {campaign.totalRecipients} recipient
+              records and response history for it. Donors themselves are not affected. This cannot be undone.
+              Type the campaign name to confirm.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={campaign.name}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4"
+            />
+            {deleteMutation.isError && (
+              <div className="text-red-600 text-sm mb-4">{(deleteMutation.error as Error).message}</div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteModalOpen(false)} className="px-4 py-2 border rounded text-sm">Cancel</button>
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteConfirmText !== campaign.name || deleteMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete Campaign"}
               </button>
             </div>
           </div>

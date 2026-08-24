@@ -127,6 +127,11 @@ export const api = {
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),
   updateCampaign: (id: string, data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns/" + id, { method: "PUT", body: JSON.stringify(data) }),
+  deleteCampaign: (id: string) =>
+    request<ApiResponse<{ name: string; recipientsDeleted: number; responseHistoryDeleted: number }>>(
+      "/campaigns/" + id,
+      { method: "DELETE" }
+    ),
   addRecipients: (campaignId: string, data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns/" + campaignId + "/recipients", {
       method: "POST",

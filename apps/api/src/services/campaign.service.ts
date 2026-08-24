@@ -42,6 +42,25 @@ export async function updateCampaign(id: string, updates: Partial<ICampaign>) {
   return campaign;
 }
 
+export async function deleteCampaign(id: string) {
+  const campaign = await Campaign.findById(id);
+  if (!campaign) throw new NotFoundError("Campaign not found");
+
+  if (campaign.status === CampaignStatus.Sending) {
+    throw new BadRequestError("Can't delete a campaign while it's sending — wait for it to finish or fail first");
+  }
+
+  const [{ deletedCount: recipientsDeleted }, { deletedCount: responseHistoryDeleted }] = await Promise.all([
+    CampaignRecipient.deleteMany({ campaignId: id }),
+    ResponseHistory.deleteMany({ campaignId: id }),
+  ]);
+  await Campaign.deleteOne({ _id: id });
+
+  emitAppEvent({});
+
+  return { name: campaign.name, recipientsDeleted, responseHistoryDeleted };
+}
+
 export async function addRecipients(
   campaignId: string,
   donorIds?: string[],

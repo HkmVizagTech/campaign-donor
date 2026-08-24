@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  create, list, getById, update,
+  create, list, getById, update, deleteCampaign,
   addRecipients, getRecipients,
   updateResponse, updateBrickStatus, checkIn,
   getStats, dashboard, send, getTemplateInfo, searchRecipients, getRecipientStats,
@@ -26,6 +26,7 @@ router.get("/", list);
 router.post("/", create);
 router.get("/:id", getById);
 router.put("/:id", update);
+router.delete("/:id", deleteCampaign);
 
 // Recipients
 router.post("/:id/recipients", addRecipients);

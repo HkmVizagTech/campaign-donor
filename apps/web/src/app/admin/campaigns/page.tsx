@@ -1,12 +1,14 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 export default function CampaignsPage() {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["campaigns"],
     queryFn: () => api.campaigns(),
@@ -14,6 +16,16 @@ export default function CampaignsPage() {
 
   const campaigns = (data?.data || []) as any[];
   const router = useRouter();
+  const [deleting, setDeleting] = useState<any>(null);
+  const [confirmText, setConfirmText] = useState("");
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteCampaign(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      setDeleting(null);
+    },
+  });
 
   const statusColors: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700",
@@ -60,10 +72,56 @@ export default function CampaignsPage() {
                     {c.status}
                   </span>
                   <span className="text-sm text-gray-500">{c.totalRecipients} recipients</span>
+                  {c.status !== "sending" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmText("");
+                        setDeleting(c);
+                      }}
+                      title="Delete campaign"
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {deleting && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setDeleting(null)}>
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-red-700 mb-2">Delete Campaign</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This permanently deletes <strong>{deleting.name}</strong> and all {deleting.totalRecipients} recipient
+              records and response history for it. Donors themselves are not affected. This cannot be undone.
+              Type the campaign name to confirm.
+            </p>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={deleting.name}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4"
+            />
+            {deleteMutation.isError && (
+              <div className="text-red-600 text-sm mb-4">{(deleteMutation.error as Error).message}</div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleting(null)} className="px-4 py-2 border rounded text-sm">Cancel</button>
+              <button
+                onClick={() => deleteMutation.mutate(deleting._id)}
+                disabled={confirmText !== deleting.name || deleteMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete Campaign"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

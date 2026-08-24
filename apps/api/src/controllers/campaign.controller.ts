@@ -97,6 +97,26 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function deleteCampaign(req: Request, res: Response, next: NextFunction) {
+  try {
+    const admin = (req as AuthRequest).admin!;
+    const id = getId(req);
+    const result = await campaignService.deleteCampaign(id);
+
+    await AuditLog.create({
+      adminId: admin._id,
+      action: "campaign_deleted",
+      entity: "campaign",
+      entityId: id as any,
+      metadata: result,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function addRecipients(req: Request, res: Response, next: NextFunction) {
   try {
     const { donorIds, addAll, importBatchId } = req.body;
