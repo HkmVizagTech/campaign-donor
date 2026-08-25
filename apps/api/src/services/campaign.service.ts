@@ -324,7 +324,11 @@ export async function updateBrickStatus(campaignId: string, recipientId: string,
   const recipient = await CampaignRecipient.findOne({ _id: recipientId, campaignId });
   if (!recipient) throw new NotFoundError("Recipient not found");
 
+  const wasHandedOver = recipient.brickStatus === "handed_over";
   recipient.brickStatus = brickStatus as any;
+  if (brickStatus === "handed_over" && !wasHandedOver) {
+    recipient.brickHandedOverAt = new Date();
+  }
   await recipient.save();
 
   // Keep the denormalized copy on Donor in sync so the Donors list can
@@ -333,6 +337,24 @@ export async function updateBrickStatus(campaignId: string, recipientId: string,
 
   emitAppEvent({ campaignId });
   return recipient;
+}
+
+// Daily breakdown of brick handovers, for the Brick Counter's date-based
+// stats chart. Only counts recipients with a recorded handover timestamp —
+// records handed over before this field existed won't appear here.
+export async function getBrickHandoverStatsByDate() {
+  const rows = await CampaignRecipient.aggregate([
+    { $match: { brickHandedOverAt: { $exists: true, $ne: null } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$brickHandedOverAt" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+    { $project: { _id: 0, date: "$_id", count: 1 } },
+  ]);
+  return rows;
 }
 
 // Event-day entry check-in — separate from brick handover, since a patron

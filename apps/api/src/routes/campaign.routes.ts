@@ -4,6 +4,7 @@ import {
   addRecipients, getRecipients,
   updateResponse, updateBrickStatus, checkIn,
   getStats, dashboard, send, getTemplateInfo, searchRecipients, getRecipientStats,
+  getBrickHandoverStatsByDate,
 } from "../controllers/campaign.controller.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -20,6 +21,7 @@ router.get("/template-info", getTemplateInfo);
 // Counter lookup: search recipients across all campaigns — must come before /:id
 router.get("/recipients/search", searchRecipients);
 router.get("/recipients/stats", getRecipientStats);
+router.get("/recipients/brick-stats-by-date", getBrickHandoverStatsByDate);
 
 // Campaign CRUD
 router.get("/", list);

@@ -52,9 +52,17 @@ export default function BrickCounterPage() {
   });
   const stats = statsData?.data;
 
+  const { data: handoverStatsData } = useQuery({
+    queryKey: ["brickHandoverStatsByDate"],
+    queryFn: () => api.brickHandoverStatsByDate(),
+    refetchInterval: 30000,
+  });
+  const handoverStats = handoverStatsData?.data || [];
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["brickSearch"] });
     queryClient.invalidateQueries({ queryKey: ["recipientStats"] });
+    queryClient.invalidateQueries({ queryKey: ["brickHandoverStatsByDate"] });
   };
 
   const updateBrickMutation = useMutation({
@@ -90,6 +98,8 @@ export default function BrickCounterPage() {
           <StatCard icon={<Package size={16} className="text-green-500" />} label="Bricks Handed Over" value={stats.brick.handed_over || 0} />
         </div>
       )}
+
+      <BrickHandoverChart data={handoverStats} />
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-4 max-w-xl">
         <input
@@ -376,6 +386,50 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <span className="text-2xl font-bold">{value.toLocaleString()}</span>
       </div>
       <div className="text-sm text-gray-500 mt-1">{label}</div>
+    </div>
+  );
+}
+
+function formatChartDate(iso: string) {
+  // Append a time so this parses as local midnight, not UTC — otherwise the
+  // date can shift a day depending on the viewer's timezone.
+  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function BrickHandoverChart({ data }: { data: { date: string; count: number }[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border p-4 mb-6 max-w-3xl text-sm text-gray-500">
+        No brick handovers with a recorded date yet — this chart only counts handovers marked after this
+        feature was added.
+      </div>
+    );
+  }
+
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
+  const plotHeight = 120;
+
+  return (
+    <div className="bg-white rounded-lg border p-4 mb-6 max-w-3xl">
+      <h2 className="text-sm font-medium text-gray-700 mb-4">Bricks Handed Over by Date</h2>
+      <div className="flex items-end gap-3 overflow-x-auto pb-1" style={{ minHeight: plotHeight + 40 }}>
+        {data.map((d) => {
+          const barHeight = Math.max((d.count / maxCount) * plotHeight, 4);
+          return (
+            <div key={d.date} className="flex flex-col items-center gap-1 shrink-0 w-10">
+              <div className="text-xs font-medium text-gray-700" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {d.count}
+              </div>
+              <div
+                className="bg-blue-600 rounded-t"
+                style={{ width: 20, height: barHeight }}
+                title={`${formatChartDate(d.date)}: ${d.count} handed over`}
+              />
+              <div className="text-xs text-gray-500 whitespace-nowrap">{formatChartDate(d.date)}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -14,6 +14,10 @@ export interface ICampaignRecipient extends Document {
   failureReason?: string;
   externalMessageId?: string;
   brickStatus: BrickStatus;
+  // Set once, the first time brickStatus transitions to "handed_over" — not
+  // reused from updatedAt, which shifts on unrelated field changes and would
+  // corrupt date-based handover stats.
+  brickHandedOverAt?: Date;
   checkedIn: boolean;
   checkedInAt?: Date;
   createdAt: Date;
@@ -34,6 +38,7 @@ const campaignRecipientSchema = new Schema<ICampaignRecipient>(
     failureReason: { type: String },
     externalMessageId: { type: String },
     brickStatus: { type: String, enum: Object.values(BrickStatus), default: BrickStatus.Pending },
+    brickHandedOverAt: { type: Date },
     checkedIn: { type: Boolean, default: false },
     checkedInAt: { type: Date },
   },

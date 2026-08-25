@@ -156,6 +156,8 @@ export const api = {
       total: number; checkedIn: number; notCheckedIn: number;
       brick: Record<string, number>;
     }>>("/campaigns/recipients/stats"),
+  brickHandoverStatsByDate: () =>
+    request<ApiResponse<{ date: string; count: number }[]>>("/campaigns/recipients/brick-stats-by-date"),
   createCampaign: (data: unknown) =>
     request<ApiResponse<unknown>>("/campaigns", { method: "POST", body: JSON.stringify(data) }),
   campaign: (id: string) => request<ApiResponse<unknown>>("/campaigns/" + id),

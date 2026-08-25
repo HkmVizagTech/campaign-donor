@@ -41,6 +41,15 @@ export async function getRecipientStats(req: Request, res: Response, next: NextF
   }
 }
 
+export async function getBrickHandoverStatsByDate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const stats = await campaignService.getBrickHandoverStatsByDate();
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     const admin = (req as AuthRequest).admin!;
